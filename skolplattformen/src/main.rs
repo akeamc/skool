@@ -1,6 +1,6 @@
 use std::env;
 
-use skolplattformen::auth;
+use skolplattformen::auth::{self, Session};
 
 #[tokio::main]
 async fn main() {
@@ -13,7 +13,12 @@ async fn main() {
     .await
     .unwrap();
 
-    let json = serde_json::to_string(&session).unwrap();
+    let key = b"bruhbruhbruhbruhbruhbruhbruhbruh";
 
-    println!("{}", json);
+    let ciphertext = skolplattformen::crypto::encrypt(&session, key).unwrap();
+
+    println!("{}", ciphertext);
+    println!("{} bytes", ciphertext.len());
+
+    let plain: Session = skolplattformen::crypto::decrypt(&ciphertext, key).unwrap();
 }

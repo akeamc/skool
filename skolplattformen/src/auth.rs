@@ -1,21 +1,29 @@
 use std::sync::Arc;
 
-use cookie_store::CookieStore;
+use cookie_store::{Cookie, CookieStore};
 use lazy_static::lazy_static;
-use reqwest::{Client, IntoUrl};
+use reqwest::{Client, IntoUrl, StatusCode};
 use reqwest_cookie_store::CookieStoreMutex;
 use scrape::scrape_form;
 use scraper::{Html, Selector};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 use crate::USER_AGENT;
 
-#[derive(Debug, Serialize)]
-pub struct Session {
-    pub cookie_store: CookieStore,
+#[derive(Debug, Error)]
+pub enum AuthError {
+    #[error("bad credentials")]
+    BadCredentials,
+
+    #[error("reqwest error")]
+    ReqwestError(#[from] reqwest::Error),
 }
 
-pub type AppResult<T> = Result<T, reqwest::Error>;
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Session {
+    pub cookies: Vec<Cookie<'static>>,
+}
 
 pub async fn get_html(client: &Client, url: impl IntoUrl) -> Result<Html, reqwest::Error> {
     let raw = client.get(url).send().await?.text().await?;
@@ -27,7 +35,7 @@ async fn populate_cookie_store_with_session_data(
     username: &str,
     password: &str,
     cookie_store: Arc<CookieStoreMutex>,
-) -> AppResult<()> {
+) -> Result<(), AuthError> {
     lazy_static! {
         static ref A_NAVBTN: Selector = Selector::parse("a.navBtn").unwrap();
         static ref A_BETA: Selector = Selector::parse("a.beta").unwrap();
@@ -38,11 +46,7 @@ async fn populate_cookie_store_with_session_data(
         .user_agent(USER_AGENT)
         .build()?;
 
-    let doc = get_html(
-&client,
-"https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/authenticate?customer=https://login001.stockholm.se",
-)
-.await?;
+    let doc = get_html(&client, "https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/authenticate?customer=https://login001.stockholm.se").await?;
 
     let student_href = doc
         .select(&A_NAVBTN)
@@ -96,11 +100,15 @@ async fn populate_cookie_store_with_session_data(
         .send()
         .await?;
 
+    if res.status() == StatusCode::BAD_REQUEST {
+        return Err(AuthError::BadCredentials);
+    }
+
     let doc = Html::parse_document(&res.text().await?);
 
     let form_body = scrape_form(&doc).unwrap();
 
-    let res = client
+    client
         .post("https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/response")
         .form(&form_body)
         .send()
@@ -116,18 +124,16 @@ async fn populate_cookie_store_with_session_data(
     Ok(())
 }
 
-pub async fn start_session(username: &str, password: &str) -> AppResult<Session> {
+pub async fn start_session(username: &str, password: &str) -> Result<Session, AuthError> {
     let cookie_store = CookieStore::default();
     let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
 
     populate_cookie_store_with_session_data(username, password, cookie_store.clone()).await?;
 
     let lock = Arc::try_unwrap(cookie_store).expect("lock still has multiple owners");
-		let cookie_store = lock.into_inner().expect("mutex cannot be locked");
-
-		dbg!(cookie_store.iter_any().count());
+    let cookie_store = lock.into_inner().expect("mutex cannot be locked");
 
     Ok(Session {
-        cookie_store,
+        cookies: cookie_store.iter_any().map(|c| c.to_owned()).collect(),
     })
 }
