@@ -1,8 +1,9 @@
 use std::env;
 
+use chrono::{Datelike, Utc};
 use skolplattformen::{
     auth::{self, Session},
-    schedule::get_scope,
+    schedule::{get_scope, lessons_by_week, list_timetables, ScheduleCredentials},
 };
 
 #[tokio::main]
@@ -25,9 +26,21 @@ async fn main() {
 
     let _plain: Session = skolplattformen::crypto::decrypt(&ciphertext, key).unwrap();
 
-    let client = session.client();
+    let client = session.into_client();
 
     let scope = get_scope(&client).await.unwrap();
 
-    println!("{}", scope);
+    let creds = ScheduleCredentials { scope };
+
+    let timetables = list_timetables(&client, &creds).await.unwrap();
+
+    let timetable = timetables.into_iter().next().unwrap();
+
+    dbg!(&timetable.school_id);
+
+    let lessons = lessons_by_week(&client, &creds, &timetable, Utc::now().iso_week())
+        .await
+        .unwrap();
+
+    dbg!(lessons);
 }

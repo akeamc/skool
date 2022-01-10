@@ -21,3 +21,6 @@ thiserror = "1.0.30"
 rmp-serde = "0.15.5"
 aes-gcm-siv = "0.10.3"
 rand = "0.8.4"
+chrono = "0.4.19"
+agenda = { path = "../agenda" }
+chrono-tz = "0.6.1"

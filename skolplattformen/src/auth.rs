@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cookie_store::{Cookie, CookieStore};
+use cookie_store::CookieStore;
 use lazy_static::lazy_static;
 use reqwest::{Client, StatusCode};
 use reqwest_cookie_store::CookieStoreMutex;
@@ -26,7 +26,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn client(self) -> Client {
+    pub fn into_client(self) -> Client {
         let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(
             self.cookie_store,
         ));
@@ -39,7 +39,7 @@ impl Session {
     }
 }
 
-async fn populate_cookie_store_with_session_data(
+async fn fill_jar_with_session_data(
     username: &str,
     password: &str,
     cookie_store: Arc<CookieStoreMutex>,
@@ -129,12 +129,10 @@ pub async fn start_session(username: &str, password: &str) -> Result<Session, Au
     let cookie_store = CookieStore::default();
     let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
 
-    populate_cookie_store_with_session_data(username, password, cookie_store.clone()).await?;
+    fill_jar_with_session_data(username, password, cookie_store.clone()).await?;
 
     let lock = Arc::try_unwrap(cookie_store).expect("lock still has multiple owners");
     let cookie_store = lock.into_inner().expect("mutex cannot be locked");
 
-    Ok(Session {
-        cookie_store,
-    })
+    Ok(Session { cookie_store })
 }
