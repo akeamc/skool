@@ -1,6 +1,6 @@
 use std::env;
 
-use skolplattformen::auth::{self, Session};
+use skolplattformen::{auth::{self, Session}, schedule::get_scope};
 
 #[tokio::main]
 async fn main() {
@@ -21,4 +21,10 @@ async fn main() {
     println!("{} bytes", ciphertext.len());
 
     let plain: Session = skolplattformen::crypto::decrypt(&ciphertext, key).unwrap();
+
+    let client = session.client();
+
+    let scope = get_scope(&client).await.unwrap();
+
+    println!("{}", scope);
 }

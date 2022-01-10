@@ -9,7 +9,7 @@ use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::USER_AGENT;
+use crate::{util::get_html, USER_AGENT};
 
 #[derive(Debug, Error)]
 pub enum AuthError {
@@ -25,10 +25,28 @@ pub struct Session {
     pub cookies: Vec<Cookie<'static>>,
 }
 
-pub async fn get_html(client: &Client, url: impl IntoUrl) -> Result<Html, reqwest::Error> {
-    let raw = client.get(url).send().await?.text().await?;
+impl Session {
+    pub fn cookie_store(&self) -> CookieStore {
+        let mut store = CookieStore::default();
 
-    Ok(Html::parse_document(&raw))
+        for cookie in &self.cookies {
+            dbg!(cookie);
+        }
+
+        store
+    }
+
+    pub fn client(&self) -> Client {
+        let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(
+            self.cookie_store(),
+        ));
+
+        Client::builder()
+            .cookie_provider(cookie_store.clone())
+            .user_agent(USER_AGENT)
+            .build()
+            .unwrap()
+    }
 }
 
 async fn populate_cookie_store_with_session_data(
