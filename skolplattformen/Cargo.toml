@@ -21,5 +21,3 @@ thiserror = "1.0.30"
 rmp-serde = "0.15.5"
 aes-gcm-siv = "0.10.3"
 rand = "0.8.4"
-
-[features]

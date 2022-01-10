@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cookie_store::{Cookie, CookieStore};
 use lazy_static::lazy_static;
-use reqwest::{Client, IntoUrl, StatusCode};
+use reqwest::{Client, StatusCode};
 use reqwest_cookie_store::CookieStoreMutex;
 use scrape::scrape_form;
 use scraper::{Html, Selector};
@@ -22,27 +22,17 @@ pub enum AuthError {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Session {
-    pub cookies: Vec<Cookie<'static>>,
+    pub cookie_store: CookieStore,
 }
 
 impl Session {
-    pub fn cookie_store(&self) -> CookieStore {
-        let mut store = CookieStore::default();
-
-        for cookie in &self.cookies {
-            dbg!(cookie);
-        }
-
-        store
-    }
-
-    pub fn client(&self) -> Client {
+    pub fn client(self) -> Client {
         let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(
-            self.cookie_store(),
+            self.cookie_store,
         ));
 
         Client::builder()
-            .cookie_provider(cookie_store.clone())
+            .cookie_provider(cookie_store)
             .user_agent(USER_AGENT)
             .build()
             .unwrap()
@@ -132,13 +122,6 @@ async fn populate_cookie_store_with_session_data(
         .send()
         .await?;
 
-    let timetable_landing = client
-        .get("https://fns.stockholm.se/ng/portal/start/timetable/timetable-viewer")
-        .send()
-        .await?
-        .text()
-        .await?;
-
     Ok(())
 }
 
@@ -152,6 +135,6 @@ pub async fn start_session(username: &str, password: &str) -> Result<Session, Au
     let cookie_store = lock.into_inner().expect("mutex cannot be locked");
 
     Ok(Session {
-        cookies: cookie_store.iter_any().map(|c| c.to_owned()).collect(),
+        cookie_store,
     })
 }

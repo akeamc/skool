@@ -403,7 +403,7 @@ impl CookieStore {
         CookieStore::load(reader, |cookie| ::serde_json::from_str(cookie))
     }
 
-    fn from_cookies<I, E>(iter: I) -> Result<Self, E>
+    pub fn from_cookies<I, E>(iter: I) -> Result<Self, E>
     where
         I: IntoIterator<Item = Result<Cookie<'static>, E>>,
     {
@@ -431,7 +431,7 @@ impl Serialize for CookieStore {
     where
         S: Serializer,
     {
-        serializer.collect_seq(self.iter_unexpired().filter(|c| c.is_persistent()))
+        serializer.collect_seq(self.iter_unexpired())
     }
 }
 
