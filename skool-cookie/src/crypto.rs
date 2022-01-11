@@ -1,11 +1,10 @@
 use aes_gcm_siv::aead::{Aead, NewAead};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce};
+use base64::URL_SAFE_NO_PAD;
 use rand::Rng;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use thiserror::Error;
-
-use crate::ascii85;
 
 #[derive(Debug, Error)]
 pub enum CryptoError {
@@ -18,8 +17,8 @@ pub enum CryptoError {
     #[error("aes error")]
     Aes,
 
-    #[error("ascii85 error")]
-    Ascii85(#[from] ascii85::Ascii85Error),
+    #[error("base64 error")]
+    Base64(#[from] base64::DecodeError),
 
     #[error("ciphertext too short")]
     CiphertextTooShort,
@@ -33,7 +32,7 @@ impl From<aes_gcm_siv::aead::Error> for CryptoError {
 
 const NONCE_LEN: usize = 12;
 const KEY_LEN: usize = 32;
-type Key = [u8; KEY_LEN];
+pub type Key = [u8; KEY_LEN];
 
 fn encrypt_bytes(val: &impl Serialize, key: &Key) -> Result<Vec<u8>, CryptoError> {
     let plaintext = rmp_serde::to_vec(val)?;
@@ -64,13 +63,13 @@ where
 }
 
 pub fn encrypt(val: &impl Serialize, key: &Key) -> Result<String, CryptoError> {
-    encrypt_bytes(val, key).map(|v| ascii85::encode(&v))
+    encrypt_bytes(val, key).map(|v| base64::encode_config(&v, URL_SAFE_NO_PAD))
 }
 
 pub fn decrypt<T>(val: &str, key: &Key) -> Result<T, CryptoError>
 where
     T: DeserializeOwned,
 {
-    let ciphertext = ascii85::decode(val)?;
+    let ciphertext = base64::decode_config(val, URL_SAFE_NO_PAD)?;
     decrypt_bytes(&ciphertext, key)
 }

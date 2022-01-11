@@ -7,6 +7,7 @@ use reqwest_cookie_store::CookieStoreMutex;
 use scrape::scrape_form;
 use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
+use skool_cookie::Cookie;
 use thiserror::Error;
 
 use crate::{util::get_html, USER_AGENT};
@@ -20,7 +21,8 @@ pub enum AuthError {
     ReqwestError(#[from] reqwest::Error),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Cookie)]
+#[cookie_name("session")]
 pub struct Session {
     pub cookie_store: CookieStore,
 }

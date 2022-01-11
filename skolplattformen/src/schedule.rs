@@ -111,6 +111,16 @@ pub async fn list_timetables(
     Ok(student_timetables.unwrap_or_default())
 }
 
+pub async fn get_timetable(
+    client: &Client,
+    credentials: &ScheduleCredentials,
+    id: &str,
+) -> Result<Option<Timetable>, reqwest::Error> {
+    let timetables = list_timetables(client, credentials).await?;
+
+    Ok(timetables.into_iter().find(|t| t.timetable_id == id))
+}
+
 async fn get_render_key(
     client: &Client,
     credentials: &ScheduleCredentials,
@@ -167,8 +177,9 @@ pub fn try_into_agenda_lesson(lesson: Lesson, date: NaiveDate) -> Option<agenda:
 
     let mut texts = lesson.texts.into_iter();
     let course = texts.next().filter(|s| !s.is_empty());
+    // texts is sometimes [course, location] and sometimes [course, teacher, location]
+    let location = texts.next_back().filter(|s| !s.is_empty());
     let teacher = texts.next().filter(|s| !s.is_empty());
-    let location = texts.next().filter(|s| !s.is_empty());
 
     Some(agenda::Lesson {
         start: Lesson::TZ

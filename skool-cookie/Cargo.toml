@@ -1,5 +1,5 @@
 [package]
-name = "skool"
+name = "skool-cookie"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,10 +7,11 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4.0.0-beta.19"
-serde = { version = "1.0.133", features = ["derive"] }
-skolplattformen = { path = "../skolplattformen" }
+aes-gcm-siv = "0.10.3"
+rmp-serde = "0.15.5"
+rand = "0.8.4"
 thiserror = "1.0.30"
+derive-cookie = { path = "derive-cookie" }
+serde = { version = "1.0.133", features = ["derive"] }
 futures = "0.3.19"
-skool-cookie = { path = "../skool-cookie" }
-actix-cors = "0.6.0-beta.8"
-chrono = "0.4.19"
+base64 = "0.13.0"
