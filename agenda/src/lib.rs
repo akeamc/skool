@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use chrono::{DateTime, Duration, Utc};
 
-#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 pub trait LessonLike {
@@ -21,8 +20,7 @@ pub trait LessonLike {
     fn course(&self) -> Option<Cow<str>>;
 }
 
-#[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Lesson {
     pub teacher: Option<String>,
     pub location: Option<String>,
