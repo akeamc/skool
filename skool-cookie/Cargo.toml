@@ -11,7 +11,7 @@ aes-gcm-siv = "0.10.3"
 rmp-serde = "0.15.5"
 rand = "0.8.4"
 thiserror = "1.0.30"
-derive-cookie = { path = "derive-cookie" }
+skool-cookie-derive = { path = "skool-cookie-derive" }
 serde = { version = "1.0.133", features = ["derive"] }
 futures = "0.3.19"
 base64 = "0.13.0"

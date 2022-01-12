@@ -2,17 +2,8 @@ import type { NextPage } from "next";
 import { useAuth } from "../lib/auth";
 import { useLessons, useTimetables } from "../lib/schedule";
 import { FunctionComponent } from "react";
-import { Login } from "../components/Login";
-
-interface Props {
-  id: string;
-}
-
-const Timetable: FunctionComponent<Props> = ({ id }) => {
-  const { data: lessons } = useLessons(id);
-
-  return <pre>{JSON.stringify(lessons, null, 2)}</pre>;
-};
+import { Login } from "../components/login";
+import { Timetable } from "../components/timetable/timetable";
 
 const Home: NextPage = () => {
   const { login, logout, ...auth } = useAuth();

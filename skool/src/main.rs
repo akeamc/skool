@@ -1,10 +1,10 @@
 use actix_cors::Cors;
 use actix_web::{
-    cookie::Expiration,
-    web,
-    App, HttpRequest, HttpResponse, HttpServer, Responder,
+    cookie::Expiration, middleware::Logger, web, App, HttpRequest, HttpResponse, HttpServer,
+    Responder,
 };
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, NaiveDate};
+use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use skolplattformen::{
     auth::{start_session, Session},
@@ -74,14 +74,23 @@ async fn timetable(
     HttpResponse::Ok().json(timetable)
 }
 
+#[derive(Debug, Deserialize)]
+struct LessonsQuery {
+    year: i32,
+    week: u32,
+}
+
 async fn lessons(
     session: Session,
     credentials: web::Query<ScheduleCredentials>,
+    query: web::Query<LessonsQuery>,
     id: web::Path<String>,
 ) -> impl Responder {
     let client = session.into_client();
     let timetable = get_timetable(&client, &credentials, &id).await.unwrap();
-    let week = Utc::now().iso_week();
+    let week = NaiveDate::from_isoywd_opt(query.year, query.week, chrono::Weekday::Mon)
+        .expect("invalid date")
+        .iso_week();
     let lessons = lessons_by_week(&client, &credentials, &timetable.unwrap(), week)
         .await
         .unwrap();
@@ -90,6 +99,9 @@ async fn lessons(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
+    tracing_subscriber::fmt::init();
+
     let conf = CookieConfig {
         key: *b"bruhbruhbruhbruhbruhbruhbruhbruh",
     };
@@ -98,6 +110,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
 
         App::new()
+            .wrap(Logger::default())
             .wrap(cors)
             .app_data(web::Data::new(conf))
             .route("/login", web::post().to(login))

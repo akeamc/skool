@@ -10,7 +10,7 @@ use thiserror::Error;
 
 pub mod crypto;
 
-pub use derive_cookie::Cookie;
+pub use skool_cookie_derive::Cookie;
 
 pub use actix_web::{dev::Payload, web, FromRequest, HttpRequest};
 pub use futures::future;

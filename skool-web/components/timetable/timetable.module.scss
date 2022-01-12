@@ -1,0 +1,42 @@
+.cols {
+  --hour-height: 120px;
+  --second-height: calc(var(--hour-height) / 3600);
+  --scale-size: 64px;
+  --days: 5;
+
+  display: grid;
+  grid-template-columns: var(--scale-size) repeat(var(--days), 1fr);
+  position: relative;
+  height: calc(var(--hour-height) * 24);
+  background-color: #f5f5f5;
+}
+
+.board {
+  position: relative;
+}
+
+.event {
+  position: absolute;
+  top: calc(var(--start-secs) * var(--second-height));
+  height: calc(var(--duration-secs) * var(--second-height));
+  width: 100%;
+  background-color: #fff;
+  border: 1px solid #eee;
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #888;
+
+  h3 {
+    margin-block: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #000;
+  }
+
+  .details {
+    font-size: 14px;
+    font-weight: 500;
+    color: #888;
+  }
+}

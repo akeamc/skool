@@ -40,15 +40,21 @@ export interface Lesson {
   course: string | null;
 }
 
-export function useLessons(timetable: string): SWRResponse<Lesson[]> {
+interface UseLessons {
+  timetable?: string;
+  year?: number;
+  week?: number;
+}
+
+export function useLessons({timetable, year, week}: UseLessons): SWRResponse<Lesson[]> {
   const { authenticated } = useAuth();
   const { data: scope } = useScope();
 
   return useSWR(
-    authenticated && scope ? `/timetables/${timetable}/lessons` : null,
-    async () => {
+    timetable && authenticated && scope && year && week ? `/timetables/${timetable}/lessons?scope=${scope}&year=${year}&week=${week}` : null,
+    async (path) => {
       return fetch(
-        `http://localhost:8000/timetables/${timetable}/lessons?scope=${scope}`,
+        `http://localhost:8000${path}`,
         {
           credentials: "include",
         }

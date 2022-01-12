@@ -8,9 +8,7 @@ edition = "2021"
 [dependencies]
 lazy_static = "1.4.0"
 reqwest = { version = "0.11.8", features = ["cookies", "json"] }
-tokio = { version = "1.15.0", features = ["full"] }
 tracing = "0.1.29"
-dotenv = "0.15.0"
 scraper = "0.12.0"
 scrape = { path = "../scrape" }
 reqwest_cookie_store = "0.2.0"
