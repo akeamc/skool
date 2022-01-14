@@ -7,7 +7,10 @@ const ScaleLabel: FunctionComponent<{hour: number}> = ({hour}) => (
     <time>
       {hour.toString().padStart(2, "0")}:00
     </time>
-    <hr className={styles.gridline}></hr>
+    <hr className={styles.full} style={{top: 0}} />
+    <hr className={styles.quarter} style={{top: "25%"}} />
+    <hr className={styles.half} style={{top: "50%"}} />
+    <hr className={styles.quarter} style={{top: "75%"}} />
     </div>
   );
   

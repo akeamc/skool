@@ -13,16 +13,35 @@
     position: absolute;
     top: -0.5em;
     line-height: 1;
+    font-size: 11px;
+    color: #888;
+
+    @media (min-width: 768px) {
+      font-size: 12px;
+    }
   }
 }
 
 .gridline {
   height: 1px;
-  background-color: #ddd;
-  width: calc(100% - var(--scale-size));
-  left: var(--scale-size);
+  background-color: var(--gridline-color);
   position: absolute;
-  top: 0;
   margin: 0;
   border: 0;
+}
+
+.quarter {
+  composes: gridline;
+  width: calc(0.5 * var(--scale-size));
+}
+
+.half {
+  composes: gridline;
+  width: calc(0.75 * var(--scale-size));
+}
+
+.full {
+  composes: gridline;
+  width: calc(100% - var(--scale-size));
+  left: var(--scale-size);
 }
