@@ -1,16 +1,12 @@
 import classNames from "classnames/bind";
 import { DateTime, Duration } from "luxon";
-import {
-  createContext,
-  FunctionComponent,
-  useContext,
-  useState,
-} from "react";
+import { createContext, FunctionComponent, useContext, useEffect, useRef, useState } from "react";
 import { Lesson, useLessons } from "../../lib/schedule";
 import { Scale } from "./scale";
 import styles from "./timetable.module.scss";
-import { useContainerQuery } from 'react-container-query';
+import { useContainerQuery } from "react-container-query";
 import { Query } from "react-container-query/lib/interfaces";
+import { useTime } from "../../lib/time";
 
 const cx = classNames.bind(styles);
 
@@ -31,10 +27,28 @@ interface Props {
 }
 
 const lessonContainerQuery: Query = {
-  "horizontal": {
+  horizontal: {
     maxHeight: 64,
   },
 };
+
+const Indicator: FunctionComponent = () => {
+  const now = useTime();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof ref.current?.scrollIntoView === "function") {
+      ref.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, []);
+
+  return (
+    <div ref={ref} className={cx("indicator")} style={{["--secs" as any]: now.hour * 3600 + now.minute * 60 + now.second}} />
+  );
+}
 
 const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
   const start = DateTime.fromISO(lesson.start);
@@ -71,8 +85,10 @@ const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
 };
 
 const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
-  const { year, week, id, cursor } = useTimetableContext();
+  const now = useTime(); // if performance hurts, make sure this only updates when the day changes
+  const { year, week, id } = useTimetableContext();
   const { data } = useLessons({ timetable: id, year, week });
+  const isToday = day?.hasSame(now, "day") ?? false;
   const lessons =
     (day
       ? data?.filter((d) =>
@@ -82,6 +98,9 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
 
   return (
     <div className={styles.col}>
+      {isToday && (
+        <Indicator />
+      )}
       {lessons.map((lesson) => (
         <FloatingLesson lesson={lesson} key={lesson.start} />
       ))}
@@ -109,7 +128,7 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
   const [cursor, setCursor] = useState<DateTime | undefined>(DateTime.now);
   // const { data: lessons } = useLessons({ timetable: id, year: 2022, week: 2 });
 
-  const days = Array.from({ length: 5 }).map((_, i) =>
+  const days = Array.from({ length: 7 }).map((_, i) =>
     cursor?.set({ weekday: i + 1 })
   );
 
@@ -129,9 +148,8 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
           <div />
           {days.map((d) => (
             <div key={d?.toISODate()}>
-              {d?.toLocaleString({weekday: "long"})}
-              {" "}
-              {d?.toLocaleString({day: "numeric", month: "numeric"})}
+              {d?.toLocaleString({ weekday: "long" })}{" "}
+              {d?.toLocaleString({ day: "numeric", month: "numeric" })}
             </div>
           ))}
         </header>
