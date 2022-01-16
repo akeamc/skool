@@ -14,8 +14,8 @@ export interface Timetable {
 export function useScope() {
   const { authenticated } = useAuth();
 
-  return useSWR(authenticated ? "/scope" : null, async () => {
-    return fetch("http://localhost:8000/scope", {
+  return useSWR(authenticated ? "/schedule/scope" : null, async () => {
+    return fetch("http://localhost:8000/schedule/scope", {
       credentials: "include",
     }).then((res) => res.text());
   });
@@ -25,8 +25,8 @@ export function useTimetables(): SWRResponse<Timetable[]> {
   const { authenticated } = useAuth();
   const { data: scope } = useScope();
 
-  return useSWR(authenticated && scope ? "/timetables" : null, async () => {
-    return fetch(`http://localhost:8000/timetables?scope=${scope}`, {
+  return useSWR(authenticated && scope ? "/schedule/timetables" : null, async () => {
+    return fetch(`http://localhost:8000/schedule/timetables?scope=${scope}`, {
       credentials: "include",
     }).then((res) => res.json());
   });
@@ -53,7 +53,7 @@ export function useLessons({timetable, year, week}: UseLessons): SWRResponse<Les
   const { data: scope } = useScope();
 
   return useSWR(
-    timetable && authenticated && scope && year && week ? `/timetables/${timetable}/lessons?scope=${scope}&year=${year}&week=${week}` : null,
+    timetable && authenticated && scope && year && week ? `/schedule/timetables/${timetable}/lessons?scope=${scope}&year=${year}&week=${week}` : null,
     async (path) => {
       return fetch(
         `http://localhost:8000${path}`,

@@ -15,7 +15,7 @@ async function login(
   const req = { username, password };
   const hasBody = Object.keys(req).length > 0;
 
-  const res = await fetch("http://localhost:8000/login", {
+  const res = await fetch("http://localhost:8000/auth/login", {
     method: "POST",
     body: hasBody ? JSON.stringify(req) : undefined,
     credentials: "include",
@@ -72,7 +72,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
   }, []);
 
   const bruhLogout = useCallback(async () => {
-    await fetch("http://localhost:8000/logout", { credentials: "include" });
+    await fetch("http://localhost:8000/auth/logout", { credentials: "include" });
 
     setAuthenticated(false);
   }, []);
