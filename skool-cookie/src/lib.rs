@@ -1,5 +1,5 @@
 use actix_web::{
-    cookie::{Cookie, CookieBuilder, time::{Duration}},
+    cookie::{time::Duration, Cookie, CookieBuilder},
     http::StatusCode,
     web::Data,
     ResponseError,

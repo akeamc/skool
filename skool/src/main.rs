@@ -1,7 +1,9 @@
 use actix_cors::Cors;
 use actix_web::{
-    cookie::Expiration, middleware::Logger, web, App, HttpRequest, HttpResponse, HttpServer,
-    Responder,
+    cookie::Expiration,
+    http::header::{CacheControl, CacheDirective},
+    middleware::Logger,
+    web, App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use chrono::{Datelike, NaiveDate};
 use dotenv::dotenv;
@@ -14,7 +16,7 @@ use skool::extractor::JsonOrCookie;
 use skool_cookie::{bake_cookie, cookie_config, final_cookie, Cookie, CookieConfig};
 
 #[derive(Debug, Serialize, Deserialize, Cookie)]
-#[cookie_name("login_details")]
+#[cookie_name("login_info")]
 struct LoginInfo {
     username: String,
     password: String,
@@ -94,7 +96,12 @@ async fn lessons(
     let lessons = lessons_by_week(&client, &credentials, &timetable.unwrap(), week)
         .await
         .unwrap();
-    HttpResponse::Ok().json(lessons)
+    HttpResponse::Ok()
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(300),
+        ]))
+        .json(lessons)
 }
 
 #[actix_web::main]
