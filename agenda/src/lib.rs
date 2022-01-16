@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use chrono::{DateTime, Duration, Utc};
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub trait LessonLike {
     fn teacher(&self) -> Option<Cow<str>>;
@@ -18,6 +19,8 @@ pub trait LessonLike {
     }
 
     fn course(&self) -> Option<Cow<str>>;
+
+    fn id(&self) -> Uuid;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,6 +30,7 @@ pub struct Lesson {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
     pub course: Option<String>,
+    pub id: Uuid,
 }
 
 impl LessonLike for Lesson {
@@ -48,5 +52,9 @@ impl LessonLike for Lesson {
 
     fn course(&self) -> Option<Cow<str>> {
         self.course.as_ref().map(|s| s.into())
+    }
+
+    fn id(&self) -> Uuid {
+        self.id
     }
 }

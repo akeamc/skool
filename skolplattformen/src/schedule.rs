@@ -9,6 +9,7 @@ use scraper::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
+use uuid::Uuid;
 
 use crate::util::get_html;
 
@@ -145,7 +146,7 @@ async fn get_render_key(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Lesson {
-    // guid_id: String,
+    guid_id: String,
     texts: Vec<String>,
     time_start: String,
     time_end: String,
@@ -171,6 +172,10 @@ impl Lesson {
     }
 }
 
+const UUID_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x66, 0x2c, 0x31, 0x31, 0xb1, 0x81, 0x40, 0xdc, 0x88, 0xb4, 0x05, 0x2b, 0x18, 0xce, 0x53, 0x4b,
+]);
+
 pub fn try_into_agenda_lesson(lesson: Lesson, date: NaiveDate) -> Option<agenda::Lesson> {
     let start = NaiveTime::parse_from_str(&lesson.time_start, Lesson::TIME_FMT).ok()?;
     let end = NaiveTime::parse_from_str(&lesson.time_end, Lesson::TIME_FMT).ok()?;
@@ -193,6 +198,7 @@ pub fn try_into_agenda_lesson(lesson: Lesson, date: NaiveDate) -> Option<agenda:
         course,
         teacher,
         location,
+        id: Uuid::new_v5(&UUID_NAMESPACE, lesson.guid_id.as_bytes()),
     })
 }
 

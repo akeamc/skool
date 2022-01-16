@@ -1,5 +1,5 @@
 use actix_web::{
-    cookie::{time::Duration, Cookie, CookieBuilder},
+    cookie::{time::Duration, Cookie, CookieBuilder, SameSite},
     http::StatusCode,
     web::Data,
     ResponseError,
@@ -61,6 +61,7 @@ pub fn bake_cookie<V: CookieDough + Serialize>(
     let val = encrypt(value, key)?;
     Ok(Cookie::build(V::COOKIE_NAME, val)
         .http_only(true)
+        .same_site(SameSite::Strict)
         .domain("localhost")
         .path("/"))
 }

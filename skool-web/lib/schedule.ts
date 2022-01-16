@@ -38,6 +38,7 @@ export interface Lesson {
   start: string;
   end: string;
   course: string | null;
+  id: string;
 }
 
 interface UseLessons {

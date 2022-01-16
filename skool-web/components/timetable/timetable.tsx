@@ -30,6 +30,9 @@ const lessonContainerQuery: Query = {
   horizontal: {
     maxHeight: 64,
   },
+  narrow: {
+    maxWidth: 192,
+  }
 };
 
 const Indicator: FunctionComponent = () => {
@@ -58,7 +61,6 @@ const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
 
   return (
     <div
-      key={lesson.start}
       ref={containerRef}
       className={cx("event", params)}
       style={{
@@ -67,6 +69,7 @@ const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
         ["--duration-secs" as any]: duration.as("seconds"),
       }}
     >
+      <div className={cx("content")}>
       <h3>{lesson.course}</h3>
       <span>
         <time>
@@ -80,12 +83,13 @@ const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
           .filter((v) => typeof v == "string")
           .join(" · ")}
       </span>
+      </div>
     </div>
   );
 };
 
 const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
-  const now = useTime(); // if performance hurts, make sure this only updates when the day changes
+  const now = useTime(undefined, "day"); // if performance hurts, make sure this only updates when the day changes
   const { year, week, id } = useTimetableContext();
   const { data } = useLessons({ timetable: id, year, week });
   const isToday = day?.hasSame(now, "day") ?? false;
@@ -102,7 +106,7 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
         <Indicator />
       )}
       {lessons.map((lesson) => (
-        <FloatingLesson lesson={lesson} key={lesson.start} />
+        <FloatingLesson lesson={lesson} key={lesson.id} />
       ))}
     </div>
   );
@@ -126,9 +130,8 @@ const Controls: FunctionComponent = () => {
 
 export const Timetable: FunctionComponent<Props> = ({ id }) => {
   const [cursor, setCursor] = useState<DateTime | undefined>(DateTime.now);
-  // const { data: lessons } = useLessons({ timetable: id, year: 2022, week: 2 });
 
-  const days = Array.from({ length: 7 }).map((_, i) =>
+  const days = Array.from({ length: 5 }).map((_, i) =>
     cursor?.set({ weekday: i + 1 })
   );
 
