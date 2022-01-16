@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use skolplattformen::auth::{start_session, Session};
 use skool_cookie::{bake_cookie, cookie_config, final_cookie, Cookie, CookieConfig};
 
-use crate::extractor::JsonOrCookie;
+use crate::{error::AppResult, extractor::JsonOrCookie};
 
 #[derive(Debug, Serialize, Deserialize, Cookie)]
 #[cookie_name("login_info")]
@@ -12,20 +12,22 @@ pub struct LoginInfo {
     password: String,
 }
 
-async fn login(JsonOrCookie(info): JsonOrCookie<LoginInfo>, req: HttpRequest) -> HttpResponse {
+async fn login(
+    JsonOrCookie(info): JsonOrCookie<LoginInfo>,
+    req: HttpRequest,
+) -> AppResult<HttpResponse> {
     let CookieConfig { key } = cookie_config(&req);
 
-    let session = start_session(&info.username, &info.password).await.unwrap();
-    let login_info = bake_cookie(&info, key).unwrap().permanent().finish();
-    let session_cookie = bake_cookie(&session, key)
-        .unwrap()
+    let session = start_session(&info.username, &info.password).await?;
+    let login_info = bake_cookie(&info, key)?.permanent().finish();
+    let session_cookie = bake_cookie(&session, key)?
         .expires(Expiration::Session)
         .finish();
 
-    HttpResponse::Ok()
+    Ok(HttpResponse::Ok()
         .cookie(session_cookie)
         .cookie(login_info)
-        .body("OK")
+        .body("OK"))
 }
 
 async fn logout() -> HttpResponse {

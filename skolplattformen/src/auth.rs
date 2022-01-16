@@ -28,7 +28,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn into_client(self) -> Client {
+    pub fn into_client(self) -> Result<Client, reqwest::Error> {
         let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(
             self.cookie_store,
         ));
@@ -37,7 +37,6 @@ impl Session {
             .cookie_provider(cookie_store)
             .user_agent(USER_AGENT)
             .build()
-            .unwrap()
     }
 }
 

@@ -52,6 +52,10 @@ pub struct CookieConfig {
 
 pub trait CookieDough {
     const COOKIE_NAME: &'static str;
+
+    fn from_req(req: &HttpRequest) -> Result<Self, CookieError>
+    where
+        Self: std::marker::Sized;
 }
 
 pub fn bake_cookie<V: CookieDough + Serialize>(

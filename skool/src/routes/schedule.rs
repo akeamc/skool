@@ -1,6 +1,8 @@
 use actix_web::{
-    http::header::{CacheControl, CacheDirective},
-    web, HttpResponse,
+    dev::{Service, ServiceRequest},
+    http::header::{CacheControl, CacheDirective, HeaderName, HeaderValue},
+    web::{self, Payload},
+    FromRequest, HttpMessage, HttpRequest, HttpResponse,
 };
 use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
 use serde::Deserialize;
@@ -8,36 +10,30 @@ use skolplattformen::{
     auth::Session,
     schedule::{get_scope, get_timetable, lessons_by_week, list_timetables, ScheduleCredentials},
 };
+use skool_cookie::CookieDough;
 
-async fn scope(session: Session) -> HttpResponse {
-    let scope = get_scope(&session.into_client()).await.unwrap();
-    HttpResponse::Ok().body(scope)
-}
+use crate::error::AppResult;
 
 async fn timetables(
     session: Session,
-    credentials: web::Query<ScheduleCredentials>,
-) -> HttpResponse {
-    let timetables = list_timetables(&session.into_client(), &credentials)
-        .await
-        .unwrap();
-    HttpResponse::Ok()
+    credentials: web::ReqData<ScheduleCredentials>,
+) -> AppResult<HttpResponse> {
+    let timetables = list_timetables(&session.into_client()?, &credentials).await?;
+    Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
             CacheDirective::MaxAge(300),
         ]))
-        .json(timetables)
+        .json(timetables))
 }
 
 async fn timetable(
     session: Session,
-    credentials: web::Query<ScheduleCredentials>,
+    credentials: web::ReqData<ScheduleCredentials>,
     id: web::Path<String>,
-) -> HttpResponse {
-    let timetable = get_timetable(&session.into_client(), &credentials, &id)
-        .await
-        .unwrap();
-    HttpResponse::Ok().json(timetable)
+) -> AppResult<HttpResponse> {
+    let timetable = get_timetable(&session.into_client()?, &credentials, &id).await?;
+    Ok(HttpResponse::Ok().json(timetable))
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,27 +50,54 @@ impl LessonsQuery {
 
 async fn lessons(
     session: Session,
-    credentials: web::Query<ScheduleCredentials>,
     query: web::Query<LessonsQuery>,
     id: web::Path<String>,
-) -> HttpResponse {
-    let client = session.into_client();
+    credentials: web::ReqData<ScheduleCredentials>,
+) -> AppResult<HttpResponse> {
+    let client = session.into_client()?;
     let timetable = get_timetable(&client, &credentials, &id).await.unwrap();
     let week = query.iso_week().expect("invalid date");
-    let lessons = lessons_by_week(&client, &credentials, &timetable.unwrap(), week)
-        .await
-        .unwrap();
-    HttpResponse::Ok()
+    let lessons = lessons_by_week(&client, &credentials, &timetable.unwrap(), week).await?;
+    Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
             CacheDirective::MaxAge(300),
         ]))
-        .json(lessons)
+        .json(lessons))
+}
+
+pub async fn schedule_credentials(req: &HttpRequest) -> AppResult<ScheduleCredentials> {
+    match ScheduleCredentials::from_req(&req) {
+        Ok(credentials) => Ok(credentials),
+        Err(_) => {
+            let session = Session::from_req(&req)?;
+            let scope = get_scope(&session.into_client()?).await?;
+
+            Ok(ScheduleCredentials { scope })
+        }
+    }
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/scope").route(web::get().to(scope)))
-        .service(web::resource("/timetables").route(web::get().to(timetables)))
-        .service(web::resource("/timetables/{id}").route(web::get().to(timetable)))
-        .service(web::resource("/timetables/{id}/lessons").route(web::get().to(lessons)));
+    cfg.service(
+        web::scope("/timetables")
+            .wrap_fn(|req, srv| {
+                let (req, payload) = req.into_parts();
+                let credentials = schedule_credentials(&req);
+                let req = ServiceRequest::from_parts(req, payload);
+                req.extensions_mut().insert(credentials);
+                let fut = srv.call(req);
+                async {
+                    let mut res = fut.await?;
+                    res.headers_mut().insert(
+                        HeaderName::from_static("x-bruh"),
+                        HeaderValue::from_static("indeed"),
+                    );
+                    Ok(res)
+                }
+            })
+            .service(web::resource("").route(web::get().to(timetables)))
+            .service(web::resource("/{id}").route(web::get().to(timetable)))
+            .service(web::resource("/{id}/lessons").route(web::get().to(lessons))),
+    );
 }
