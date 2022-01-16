@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use chrono::{DateTime, Duration, Utc};
 
+use csscolorparser::Color;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -21,6 +22,8 @@ pub trait LessonLike {
     fn course(&self) -> Option<Cow<str>>;
 
     fn id(&self) -> Uuid;
+
+    fn color(&self) -> Option<&Color>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,6 +34,7 @@ pub struct Lesson {
     pub end: DateTime<Utc>,
     pub course: Option<String>,
     pub id: Uuid,
+    pub color: Option<Color>,
 }
 
 impl LessonLike for Lesson {
@@ -56,5 +60,9 @@ impl LessonLike for Lesson {
 
     fn id(&self) -> Uuid {
         self.id
+    }
+
+    fn color(&self) -> Option<&Color> {
+        self.color.as_ref()
     }
 }

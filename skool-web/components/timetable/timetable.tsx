@@ -28,7 +28,7 @@ interface Props {
 
 const lessonContainerQuery: Query = {
   horizontal: {
-    maxHeight: 64,
+    maxHeight: 48,
   },
   narrow: {
     maxWidth: 192,

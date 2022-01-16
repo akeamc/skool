@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use chrono::{IsoWeek, NaiveDate, NaiveTime, TimeZone, Utc, Weekday};
 use chrono_tz::{Europe::Stockholm, Tz};
+use csscolorparser::Color;
 use lazy_static::lazy_static;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -176,7 +179,11 @@ const UUID_NAMESPACE: Uuid = Uuid::from_bytes([
     0x66, 0x2c, 0x31, 0x31, 0xb1, 0x81, 0x40, 0xdc, 0x88, 0xb4, 0x05, 0x2b, 0x18, 0xce, 0x53, 0x4b,
 ]);
 
-pub fn try_into_agenda_lesson(lesson: Lesson, date: NaiveDate) -> Option<agenda::Lesson> {
+pub fn try_into_agenda_lesson(
+    lesson: Lesson,
+    date: NaiveDate,
+    color: Option<Color>,
+) -> Option<agenda::Lesson> {
     let start = NaiveTime::parse_from_str(&lesson.time_start, Lesson::TIME_FMT).ok()?;
     let end = NaiveTime::parse_from_str(&lesson.time_end, Lesson::TIME_FMT).ok()?;
 
@@ -199,7 +206,23 @@ pub fn try_into_agenda_lesson(lesson: Lesson, date: NaiveDate) -> Option<agenda:
         teacher,
         location,
         id: Uuid::new_v5(&UUID_NAMESPACE, lesson.guid_id.as_bytes()),
+        color,
     })
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Box {
+    // x: u32,
+    // y: u32,
+    // width: u32,
+    // height: u32,
+    b_color: Color,
+    // f_color: String,
+    // id: usize,
+    // parent_id: usize,
+    // type: String,
+    lesson_guids: Option<Vec<String>>,
 }
 
 pub async fn lessons_by_week(
@@ -214,6 +237,7 @@ pub async fn lessons_by_week(
     #[serde(rename_all = "camelCase")]
     struct Data {
         lesson_info: Option<Vec<Lesson>>,
+        box_list: Option<Vec<Box>>,
     }
 
     let ResponseWrapper { data } = client
@@ -235,13 +259,26 @@ pub async fn lessons_by_week(
         .json::<ResponseWrapper<Data>>()
         .await?;
 
+    let guid_colors: HashMap<String, Color> = data
+        .box_list
+        .unwrap_or_default()
+        .into_iter()
+        .flat_map(|b| {
+            b.lesson_guids
+                .unwrap_or_default()
+                .into_iter()
+                .map(move |l| (l, b.b_color.to_owned()))
+        })
+        .collect();
+
     let lessons = data
         .lesson_info
         .unwrap_or_default()
         .into_iter()
         .filter_map(|lesson| {
+            let color = guid_colors.get(&lesson.guid_id).map(|c| c.to_owned());
             let date = NaiveDate::from_isoywd(week.year(), week.week(), lesson.weekday()?);
-            try_into_agenda_lesson(lesson, date)
+            try_into_agenda_lesson(lesson, date, color)
         })
         .collect::<Vec<_>>();
 

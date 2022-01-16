@@ -21,3 +21,6 @@ agenda = { path = "../agenda" }
 chrono-tz = "0.6.1"
 skool-cookie = { path = "../skool-cookie" }
 uuid = { version = "0.8.2", features = ["v5"] }
+csscolorparser = { version = "0.5.0", features = ["serde"] }
+
+[features]

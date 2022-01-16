@@ -39,6 +39,7 @@ export interface Lesson {
   end: string;
   course: string | null;
   id: string;
+  color: string | null;
 }
 
 interface UseLessons {

@@ -244,6 +244,7 @@ name = "agenda"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "csscolorparser",
  "serde",
  "uuid",
 ]
@@ -506,6 +507,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d6b536309245c849479fba3da410962a43ed8e51c26b729208ec0ac2798d0"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "csscolorparser"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2fb3bd93ef32553e3d5b9f8020028f41ac64ff8a230033d5d548b8222d21fbe"
+dependencies = [
+ "phf 0.8.0",
+ "serde",
 ]
 
 [[package]]
@@ -1903,6 +1914,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "cookie_store",
+ "csscolorparser",
  "lazy_static",
  "reqwest",
  "reqwest_cookie_store",

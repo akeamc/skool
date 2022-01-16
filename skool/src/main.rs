@@ -62,7 +62,12 @@ async fn timetables(
     let timetables = list_timetables(&session.into_client(), &credentials)
         .await
         .unwrap();
-    HttpResponse::Ok().json(timetables)
+    HttpResponse::Ok()
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(300),
+        ]))
+        .json(timetables)
 }
 
 async fn timetable(
