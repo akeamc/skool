@@ -1,5 +1,6 @@
 use actix_web::{
     cookie::{time::Duration, Cookie, CookieBuilder, SameSite},
+    dev::ServiceRequest,
     http::StatusCode,
     web::Data,
     ResponseError,
@@ -40,7 +41,7 @@ where
     decrypt(cookie.value(), key)
 }
 
-pub fn cookie_config(req: &HttpRequest) -> &CookieConfig {
+pub fn cookie_config(req: &impl UsableRequest) -> &CookieConfig {
     req.app_data::<Data<CookieConfig>>()
         .expect("CookieConfig not found")
 }
@@ -53,9 +54,35 @@ pub struct CookieConfig {
 pub trait CookieDough {
     const COOKIE_NAME: &'static str;
 
-    fn from_req(req: &HttpRequest) -> Result<Self, CookieError>
+    fn from_req(req: &impl UsableRequest) -> Result<Self, CookieError>
     where
         Self: std::marker::Sized;
+}
+
+pub trait UsableRequest {
+    fn cookie(&self, name: &str) -> Option<Cookie<'static>>;
+
+    fn app_data<T: 'static>(&self) -> Option<&T>;
+}
+
+impl UsableRequest for HttpRequest {
+    fn cookie(&self, name: &str) -> Option<Cookie<'static>> {
+        self.cookie(name)
+    }
+
+    fn app_data<T: 'static>(&self) -> Option<&T> {
+        self.app_data()
+    }
+}
+
+impl UsableRequest for ServiceRequest {
+    fn cookie(&self, name: &str) -> Option<Cookie<'static>> {
+        self.cookie(name)
+    }
+
+    fn app_data<T: 'static>(&self) -> Option<&T> {
+        self.app_data()
+    }
 }
 
 pub fn bake_cookie<V: CookieDough + Serialize>(

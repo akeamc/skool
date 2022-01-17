@@ -40,10 +40,10 @@ fn impl_cookie(ast: &DeriveInput) -> TokenStream {
         impl skool_cookie::CookieDough for #name {
             const COOKIE_NAME: &'static str = #cookie_name;
 
-            fn from_req(req: &skool_cookie::HttpRequest) -> Result<Self, skool_cookie::CookieError> {
-                match req.cookie(Self::COOKIE_NAME) {
+            fn from_req(req: &impl skool_cookie::UsableRequest) -> Result<Self, skool_cookie::CookieError> {
+                match skool_cookie::UsableRequest::cookie(req, Self::COOKIE_NAME) {
                     Some(cookie) => {
-                        let conf = skool_cookie::cookie_config(&req);
+                        let conf = skool_cookie::cookie_config(req);
 
                         skool_cookie::eat_paranoid_cookie(cookie, &conf.key).map_err(|e| e.into())
                     },

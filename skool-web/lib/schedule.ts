@@ -11,22 +11,11 @@ export interface Timetable {
   last_name: string;
 }
 
-export function useScope() {
-  const { authenticated } = useAuth();
-
-  return useSWR(authenticated ? "/schedule/scope" : null, async () => {
-    return fetch("http://localhost:8000/schedule/scope", {
-      credentials: "include",
-    }).then((res) => res.text());
-  });
-}
-
 export function useTimetables(): SWRResponse<Timetable[]> {
   const { authenticated } = useAuth();
-  const { data: scope } = useScope();
 
-  return useSWR(authenticated && scope ? "/schedule/timetables" : null, async () => {
-    return fetch(`http://localhost:8000/schedule/timetables?scope=${scope}`, {
+  return useSWR(authenticated ? "/schedule/timetables" : null, async () => {
+    return fetch(`http://localhost:8000/schedule/timetables`, {
       credentials: "include",
     }).then((res) => res.json());
   });
@@ -50,10 +39,9 @@ interface UseLessons {
 
 export function useLessons({timetable, year, week}: UseLessons): SWRResponse<Lesson[]> {
   const { authenticated } = useAuth();
-  const { data: scope } = useScope();
 
   return useSWR(
-    timetable && authenticated && scope && year && week ? `/schedule/timetables/${timetable}/lessons?scope=${scope}&year=${year}&week=${week}` : null,
+    timetable && authenticated && year && week ? `/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}` : null,
     async (path) => {
       return fetch(
         `http://localhost:8000${path}`,
