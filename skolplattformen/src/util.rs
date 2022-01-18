@@ -1,8 +1,16 @@
+use std::fmt::Debug;
+
 use reqwest::{Client, IntoUrl};
 use scraper::Html;
+use tracing::{instrument, trace};
 
-pub async fn get_html(client: &Client, url: impl IntoUrl) -> Result<Html, reqwest::Error> {
-    let raw = client.get(url).send().await?.text().await?;
+#[instrument(skip(client))]
+pub async fn get_html<U: IntoUrl + Debug>(client: &Client, url: U) -> Result<Html, reqwest::Error> {
+    trace!("GET {:?}", url);
 
-    Ok(Html::parse_document(&raw))
+    let res = client.get(url).send().await?;
+
+    trace!(status = ?res.status());
+
+    Ok(Html::parse_document(&res.text().await?))
 }

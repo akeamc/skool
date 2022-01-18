@@ -1,6 +1,9 @@
 use actix_web::{cookie::Expiration, web, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
-use skolplattformen::auth::{start_session, Session};
+use skolplattformen::{
+    auth::{start_session, Session},
+    schedule::ScheduleCredentials,
+};
 use skool_cookie::{bake_cookie, cookie_config, final_cookie, Cookie, CookieConfig};
 
 use crate::{error::AppResult, extractor::JsonOrCookie};
@@ -34,6 +37,7 @@ async fn logout() -> HttpResponse {
     HttpResponse::NoContent()
         .cookie(final_cookie::<Session>().finish())
         .cookie(final_cookie::<LoginInfo>().finish())
+        .cookie(final_cookie::<ScheduleCredentials>().finish())
         .body("")
 }
 

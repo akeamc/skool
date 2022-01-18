@@ -3,7 +3,6 @@ use std::rc::Rc;
 use actix_web::{
     cookie::Expiration,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
-    http::header::{CacheControl, CacheDirective},
     web, HttpMessage, HttpResponse,
 };
 use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
@@ -17,6 +16,7 @@ use skolplattformen::{
     schedule::{get_scope, get_timetable, lessons_by_week, list_timetables, ScheduleCredentials},
 };
 use skool_cookie::{bake_cookie, cookie_config, CookieConfig, CookieDough, UsableRequest};
+use tracing::{instrument, trace, trace_span, Instrument};
 
 use crate::error::{AppError, AppResult};
 
@@ -25,12 +25,7 @@ async fn timetables(
     credentials: web::ReqData<ScheduleCredentials>,
 ) -> AppResult<HttpResponse> {
     let timetables = list_timetables(&session.into_client()?, &credentials).await?;
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![
-            CacheDirective::Private,
-            CacheDirective::MaxAge(300),
-        ]))
-        .json(timetables))
+    Ok(HttpResponse::Ok().json(timetables))
 }
 
 async fn timetable(
@@ -54,6 +49,7 @@ impl LessonsQuery {
     }
 }
 
+#[instrument(skip(session, credentials))]
 async fn lessons(
     session: Session,
     query: web::Query<LessonsQuery>,
@@ -61,15 +57,14 @@ async fn lessons(
     credentials: web::ReqData<ScheduleCredentials>,
 ) -> AppResult<HttpResponse> {
     let client = session.into_client()?;
-    let timetable = get_timetable(&client, &credentials, &id).await.unwrap();
-    let week = query.iso_week().expect("invalid date");
-    let lessons = lessons_by_week(&client, &credentials, &timetable.unwrap(), week).await?;
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![
-            CacheDirective::Private,
-            CacheDirective::MaxAge(300),
-        ]))
-        .json(lessons))
+    let timetable = get_timetable(&client, &credentials, &id)
+        .await?
+        .ok_or(AppError::TimetableNotFound)?;
+    let week = query
+        .iso_week()
+        .ok_or(AppError::BadRequest("invalid week".to_owned()))?;
+    let lessons = lessons_by_week(&client, &credentials, &timetable, week).await?;
+    Ok(HttpResponse::Ok().json(lessons))
 }
 
 struct CredentialsTransform {}
@@ -95,10 +90,17 @@ struct CredentialsMiddleware<S> {
     service: Rc<S>,
 }
 
+#[instrument(skip_all)]
 async fn schedule_credentials(req: &impl UsableRequest) -> AppResult<(ScheduleCredentials, bool)> {
     match ScheduleCredentials::from_req(req) {
-        Ok(credentials) => Ok((credentials, false)),
+        Ok(credentials) => {
+            trace!("found in cookie");
+
+            Ok((credentials, false))
+        }
         Err(_) => {
+            trace!("no cookie :(");
+
             let client = Session::from_req(req)?.into_client()?;
             let scope = get_scope(&client).await?;
 
@@ -125,6 +127,8 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let srv = self.service.clone();
 
+        let span = trace_span!("credentials_middleware");
+
         async move {
             let (credentials, set_cookie) = schedule_credentials(&req).await?;
 
@@ -149,6 +153,7 @@ where
 
             Ok(res)
         }
+        .instrument(span)
         .boxed_local()
     }
 }

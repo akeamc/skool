@@ -10,6 +10,9 @@ pub enum AppError {
 
     #[error("{0}")]
     BadRequest(String),
+
+    #[error("timetable not found")]
+    TimetableNotFound,
 }
 
 impl ResponseError for AppError {
@@ -17,6 +20,7 @@ impl ResponseError for AppError {
         match self {
             AppError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::TimetableNotFound => StatusCode::NOT_FOUND,
         }
     }
 }

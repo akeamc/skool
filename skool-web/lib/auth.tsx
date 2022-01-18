@@ -6,16 +6,16 @@ import {
   useEffect,
   useState,
 } from "react";
+import { retryRequest } from "./retry";
 
 async function login(
   username?: string,
   password?: string,
-  retries = 3
 ): Promise<void> {
   const req = { username, password };
   const hasBody = Object.keys(req).length > 0;
 
-  const res = await fetch("http://localhost:8000/auth/login", {
+  const res = await retryRequest(fetch("http://localhost:8000/auth/login", {
     method: "POST",
     body: hasBody ? JSON.stringify(req) : undefined,
     credentials: "include",
@@ -24,20 +24,17 @@ async function login(
           "Content-Type": "application/json",
         }
       : undefined,
-  });
+  }));
 
-  if (res.status === 400) {
+  if (!res.ok) {
     throw new Error(await res.text());
-  }
-
-  if (res.status % 100 === 5 && retries > 0) {
-    return login(username, password, retries - 1);
   }
 }
 
 export interface AuthData {
   authenticated: boolean;
   loading: boolean;
+  loggedOut: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -45,22 +42,24 @@ export interface AuthData {
 const AuthContext = createContext<AuthData>({
   authenticated: false,
   loading: false,
+  loggedOut: true,
   login: async () => {},
   logout: async () => {},
 });
 
 export const AuthProvider: FunctionComponent = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
+  const [loggedOut, setLoggedOut] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authenticated) {
+    if (!authenticated && !loggedOut) {
       login()
         .then(() => setAuthenticated(true))
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [authenticated]);
+  }, [authenticated, loggedOut]);
 
   const bruhLogin = useCallback(async (username: string, password: string) => {
     setLoading(true);
@@ -72,14 +71,17 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
   }, []);
 
   const bruhLogout = useCallback(async () => {
-    await fetch("http://localhost:8000/auth/logout", { credentials: "include" });
+    await fetch("http://localhost:8000/auth/logout", {
+      credentials: "include",
+    });
 
     setAuthenticated(false);
+    setLoggedOut(true);
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ authenticated, loading, login: bruhLogin, logout: bruhLogout }}
+      value={{ authenticated, loading, loggedOut, login: bruhLogin, logout: bruhLogout }}
     >
       {children}
     </AuthContext.Provider>

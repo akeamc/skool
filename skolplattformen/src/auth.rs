@@ -9,6 +9,7 @@ use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use skool_cookie::Cookie;
 use thiserror::Error;
+use tracing::{debug, instrument, trace};
 
 use crate::{util::get_html, USER_AGENT};
 
@@ -40,6 +41,7 @@ impl Session {
     }
 }
 
+#[instrument(skip(password, cookie_store))]
 async fn fill_jar_with_session_data(
     username: &str,
     password: &str,
@@ -55,6 +57,8 @@ async fn fill_jar_with_session_data(
         .user_agent(USER_AGENT)
         .build()?;
 
+    trace!("GETting login page");
+
     let doc = get_html(&client, "https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/authenticate?customer=https://login001.stockholm.se").await?;
 
     let student_href = doc
@@ -64,14 +68,14 @@ async fn fill_jar_with_session_data(
         .flatten()
         .unwrap();
 
-    let student_doc = get_html(
-        &client,
-        format!(
-            "https://login001.stockholm.se/siteminderagent/forms/{}",
-            student_href
-        ),
-    )
-    .await?;
+    let student_login_url = format!(
+        "https://login001.stockholm.se/siteminderagent/forms/{}",
+        student_href
+    );
+
+    trace!(student_login_url = student_login_url.as_str());
+
+    let student_doc = get_html(&client, &student_login_url).await?;
 
     let username_password_href = student_doc
         .select(&A_BETA)
@@ -110,6 +114,7 @@ async fn fill_jar_with_session_data(
         .await?;
 
     if res.status() == StatusCode::BAD_REQUEST {
+        debug!("bad credentials :(");
         return Err(AuthError::BadCredentials);
     }
 
@@ -123,9 +128,12 @@ async fn fill_jar_with_session_data(
         .send()
         .await?;
 
+    trace!("all requests done");
+
     Ok(())
 }
 
+#[instrument(skip(password))]
 pub async fn start_session(username: &str, password: &str) -> Result<Session, AuthError> {
     let cookie_store = CookieStore::default();
     let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
@@ -134,6 +142,8 @@ pub async fn start_session(username: &str, password: &str) -> Result<Session, Au
 
     let lock = Arc::try_unwrap(cookie_store).expect("lock still has multiple owners");
     let cookie_store = lock.into_inner().expect("mutex cannot be locked");
+
+    debug!("got {} cookies. yum", cookie_store.iter_any().count());
 
     Ok(Session { cookie_store })
 }

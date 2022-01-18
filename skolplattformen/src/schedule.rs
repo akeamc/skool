@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use skool_cookie::Cookie;
 use thiserror::Error;
+use tracing::{debug, instrument, trace};
 use uuid::Uuid;
 
 use crate::util::get_html;
@@ -40,6 +41,7 @@ pub enum GetScopeError {
     ScrapingFailed,
 }
 
+#[instrument(skip_all)]
 pub async fn get_scope(client: &Client) -> Result<String, GetScopeError> {
     lazy_static! {
         static ref NOVA_WIDGET: Selector = Selector::parse("nova-widget").unwrap();
@@ -58,6 +60,8 @@ pub async fn get_scope(client: &Client) -> Result<String, GetScopeError> {
         .flatten()
         .ok_or(GetScopeError::ScrapingFailed)?
         .to_owned();
+
+    debug!(scope = scope.as_str());
 
     Ok(scope)
 }
@@ -81,6 +85,7 @@ struct ResponseWrapper<T> {
     data: T,
 }
 
+#[instrument(skip_all)]
 pub async fn list_timetables(
     client: &Client,
     credentials: &ScheduleCredentials,
@@ -99,7 +104,9 @@ pub async fn list_timetables(
         // children_timetables: Option<Vec<Timetable>>,
     }
 
-    let ResponseWrapper { data } = client
+    trace!("sending request");
+
+    let res = client
         .post("https://fns.stockholm.se/ng/api/services/skola24/get/personal/timetables")
         .json(&json!({
             "getPersonalTimetablesRequest": {
@@ -108,15 +115,20 @@ pub async fn list_timetables(
         }))
         .headers(credentials.as_headers())
         .send()
-        .await?
-        .json::<ResponseWrapper<Data>>()
         .await?;
+
+    trace!(status = ?res.status());
+
+    let ResponseWrapper { data } = res.json::<ResponseWrapper<Data>>().await?;
+
+    trace!("deserialized");
 
     let PersonalTimetablesResponse { student_timetables } = data.get_personal_timetables_response;
 
     Ok(student_timetables.unwrap_or_default())
 }
 
+#[instrument(skip(client, credentials))]
 pub async fn get_timetable(
     client: &Client,
     credentials: &ScheduleCredentials,
@@ -127,6 +139,7 @@ pub async fn get_timetable(
     Ok(timetables.into_iter().find(|t| t.timetable_id == id))
 }
 
+#[instrument(skip_all)]
 async fn get_render_key(
     client: &Client,
     credentials: &ScheduleCredentials,
@@ -136,6 +149,8 @@ async fn get_render_key(
         key: String,
     }
 
+    trace!("sending request");
+
     let ResponseWrapper { data } = client
         .post("https://fns.stockholm.se/ng/api/get/timetable/render/key")
         .headers(credentials.as_headers())
@@ -144,6 +159,8 @@ async fn get_render_key(
         .await?
         .json::<ResponseWrapper<Data>>()
         .await?;
+
+    trace!(?data);
 
     Ok(data.key)
 }
@@ -227,6 +244,7 @@ struct Box {
     lesson_guids: Option<Vec<String>>,
 }
 
+#[instrument(skip(client, credentials, timetable))]
 pub async fn lessons_by_week(
     client: &Client,
     credentials: &ScheduleCredentials,
@@ -242,7 +260,7 @@ pub async fn lessons_by_week(
         box_list: Option<Vec<Box>>,
     }
 
-    let ResponseWrapper { data } = client
+    let res = client
         .post("https://fns.stockholm.se/ng/api/render/timetable")
         .headers(credentials.as_headers())
         .json(&json!({
@@ -257,9 +275,13 @@ pub async fn lessons_by_week(
             "year": week.year(),
         }))
         .send()
-        .await?
-        .json::<ResponseWrapper<Data>>()
         .await?;
+
+    trace!(status = ?res.status(), content_length = res.content_length());
+
+    let ResponseWrapper { data } = res.json::<ResponseWrapper<Data>>().await?;
+
+    trace!("deserialized");
 
     let guid_colors: HashMap<String, Color> = data
         .box_list
@@ -283,6 +305,8 @@ pub async fn lessons_by_week(
             try_into_agenda_lesson(lesson, date, color)
         })
         .collect::<Vec<_>>();
+
+    debug!("found {} lessons", lessons.len());
 
     Ok(lessons)
 }
