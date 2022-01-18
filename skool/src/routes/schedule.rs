@@ -62,7 +62,7 @@ async fn lessons(
         .ok_or(AppError::TimetableNotFound)?;
     let week = query
         .iso_week()
-        .ok_or(AppError::BadRequest("invalid week".to_owned()))?;
+        .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
     let lessons = lessons_by_week(&client, &credentials, &timetable, week).await?;
     Ok(HttpResponse::Ok().json(lessons))
 }

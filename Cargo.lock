@@ -1403,6 +1403,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pin-project"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58ad3879ad3baf4e44784bc6a718a8698867bb991f8ce24d1bcbe2cfb4c3a75e"
+dependencies = [
+ "pin-project-internal",
+]
+
+[[package]]
+name = "pin-project-internal"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "744b6f092ba29c3650faf274db506afd39944f48420f6c86b17cfe0ee1cb36bb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1944,7 +1964,9 @@ dependencies = [
  "skool-cookie",
  "thiserror",
  "tracing",
+ "tracing-actix-web",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -2300,10 +2322,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-actix"
-version = "0.1.0"
+name = "tracing-actix-web"
+version = "0.5.0-beta.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7a869b021f8cdb87c26ac58fa596db601931134cc7e727e9b15ba9f5c295881"
 dependencies = [
  "actix-web",
+ "pin-project",
+ "tracing",
+ "tracing-futures",
+ "uuid",
 ]
 
 [[package]]
@@ -2324,6 +2352,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f4ed65637b8390770814083d20756f87bfa2c21bf2f110babdc5438351746e4"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "tracing-futures"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
+dependencies = [
+ "pin-project",
+ "tracing",
 ]
 
 [[package]]
@@ -2433,6 +2471,7 @@ version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
+ "getrandom 0.2.3",
  "serde",
  "sha1",
 ]

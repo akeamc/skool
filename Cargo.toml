@@ -1,5 +1,5 @@
 [workspace]
-members = ["agenda", "scrape", "skolplattformen", "skool", "skool-cookie", "tracing-actix"]
+members = ["agenda", "scrape", "skolplattformen", "skool", "skool-cookie"]
 
 [patch.crates-io]
 cookie_store = { path = "./cookie_store" }
