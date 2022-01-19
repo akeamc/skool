@@ -85,6 +85,10 @@
     min-width: 0;
   }
 
+  &.past {
+    opacity: 0.5;
+  }
+
   span {
     white-space: nowrap;
   }

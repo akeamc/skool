@@ -53,31 +53,28 @@ const Indicator: FunctionComponent = () => {
   );
 }
 
-const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
-  const start = DateTime.fromISO(lesson.start);
-  const end = DateTime.fromISO(lesson.end);
-  const duration = end.diff(start);
+const FloatingLesson: FunctionComponent<{ lesson: OptimizedLesson }> = ({ lesson }) => {
   const [params, containerRef] = useContainerQuery(lessonContainerQuery, {});
+  const now = useTime();
 
   return (
     <div
       ref={containerRef}
-      className={cx("event", params)}
+      className={cx("event", params, {past: now >= lesson.end})}
       style={{
-        ["--start-secs" as any]:
-          start.hour * 3600 + start.minute * 60 + start.second,
-        ["--duration-secs" as any]: duration.as("seconds"),
+        ["--start-secs" as any]: lesson.startSecs,
+        ["--duration-secs" as any]: lesson.durationSecs,
       }}
     >
       <div className={cx("content")}>
       <h3>{lesson.course}</h3>
       <span>
         <time>
-          {DateTime.fromISO(lesson.start).toLocaleString(DateTime.TIME_SIMPLE)}
+          {lesson.start.toLocaleString(DateTime.TIME_SIMPLE)}
         </time>
         –
         <time>
-          {DateTime.fromISO(lesson.end).toLocaleString(DateTime.TIME_SIMPLE)}
+          {lesson.end.toLocaleString(DateTime.TIME_SIMPLE)}
         </time>
         {["", lesson.location, lesson.teacher]
           .filter((v) => typeof v == "string")
@@ -88,16 +85,36 @@ const FloatingLesson: FunctionComponent<{ lesson: Lesson }> = ({ lesson }) => {
   );
 };
 
+interface OptimizedLesson extends Omit<Lesson, "start" | "end"> {
+  startSecs: number;
+  durationSecs: number;
+  start: DateTime;
+  end: DateTime;
+}
+
 const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
   const now = useTime(undefined, "day"); // if performance hurts, make sure this only updates when the day changes
   const { year, week, id } = useTimetableContext();
   const { data } = useLessons({ timetable: id, year, week });
   const isToday = day?.hasSame(now, "day") ?? false;
-  const lessons =
+  const lessons: OptimizedLesson[] =
     (day
-      ? data?.filter((d) =>
-          DateTime.fromISO(d.start).setZone(day.zone).hasSame(day, "day")
-        )
+      ? data?.reduce((acc, l) => {
+        const start = DateTime.fromISO(l.start).setZone(day.zone);
+        const end = DateTime.fromISO(l.end).setZone(day.zone);
+
+          if (start.hasSame(day, "day")) {
+            acc.push({
+              ...l,
+              startSecs: start.hour * 3600 + start.minute * 60 + start.second,
+              durationSecs: end.diff(start).as("seconds"),
+              start,
+              end,
+            })
+          }
+
+          return acc;
+    }, [] as OptimizedLesson[])
       : undefined) ?? [];
 
   return (
