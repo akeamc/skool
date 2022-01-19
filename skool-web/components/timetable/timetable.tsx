@@ -8,6 +8,7 @@ import { useContainerQuery } from "react-container-query";
 import { Query } from "react-container-query/lib/interfaces";
 import { useTime } from "../../lib/time";
 import { useToken } from "../../lib/auth";
+import { API_ENDPOINT } from "../../lib/api";
 
 const cx = classNames.bind(styles);
 
@@ -154,7 +155,7 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
     cursor?.set({ weekday: i + 1 })
   );
 
-  const icalUrl = id && token ? `http://localhost:8000/schedule/timetables/${id}/lessons.ics?token=${token}` : undefined;
+  const icalUrl = id && token ? `${API_ENDPOINT}/schedule/timetables/${id}/lessons.ics?token=${token}` : undefined;
 
   return (
     <TimetableContext.Provider

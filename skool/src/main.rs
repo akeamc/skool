@@ -5,6 +5,7 @@ use dotenv::dotenv;
 
 use skool::{routes, WebhookConfig};
 use skool_cookie::CookieConfig;
+use structopt::StructOpt;
 use tracing::{info, span, Level};
 use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder, TracingLogger};
 use uuid::Uuid;
@@ -64,18 +65,21 @@ impl RootSpanBuilder for CustomRootSpanBuilder {
     }
 }
 
+#[derive(Debug, StructOpt)]
+struct Opt {
+    #[structopt(flatten)]
+    cookie: CookieConfig,
+
+    #[structopt(flatten)]
+    webhook: WebhookConfig,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
     tracing_subscriber::fmt::init();
 
-    let conf = CookieConfig {
-        key: *b"bruhbruhbruhbruhbruhbruhbruhbruh",
-    };
-
-    let bot_api_config = WebhookConfig {
-        key: *b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    };
+    let opt = Opt::from_args();
 
     HttpServer::new(move || {
         let cors = Cors::permissive();
@@ -84,8 +88,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(TracingLogger::<CustomRootSpanBuilder>::new())
             .wrap(Logger::default())
             .wrap(cors)
-            .app_data(web::Data::new(conf))
-            .app_data(web::Data::new(bot_api_config))
+            .app_data(web::Data::new(opt.cookie.clone()))
+            .app_data(web::Data::new(opt.webhook))
             .configure(routes::config)
     })
     .bind(("0.0.0.0", 8000))?

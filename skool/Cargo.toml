@@ -22,3 +22,4 @@ tracing-actix-web = "0.5.0-alpha.10"
 uuid = { version = "0.8.2", features = ["v4"] }
 agenda = { path = "../agenda" }
 mime = "0.3.16"
+structopt = "0.3.26"

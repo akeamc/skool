@@ -1,4 +1,4 @@
-use std::{rc::Rc, str::FromStr};
+use std::{rc::Rc, str::FromStr, borrow::Cow};
 
 use actix_web::{
     cookie::Expiration,
@@ -198,8 +198,8 @@ where
             let (credentials, set_cookie) = schedule_credentials(&req).await?;
 
             let cookie = if set_cookie {
-                let CookieConfig { key } = cookie_config(&req);
-                let cookie = bake_cookie(&credentials, key)
+                let CookieConfig { key, domain, path } = cookie_config(&req);
+                let cookie = bake_cookie(&credentials, key, domain.to_owned(), path.to_owned())
                     .map_err(AppError::from)?
                     .expires(Expiration::Session)
                     .finish();

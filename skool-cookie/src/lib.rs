@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use actix_web::{
     cookie::{time::Duration, Cookie, CookieBuilder, SameSite},
     dev::ServiceRequest,
@@ -7,6 +9,7 @@ use actix_web::{
 };
 use crypto::{decrypt, encrypt, CryptoError, Key};
 use serde::{de::DeserializeOwned, Serialize};
+use structopt::StructOpt;
 use thiserror::Error;
 
 pub mod crypto;
@@ -46,9 +49,16 @@ pub fn cookie_config(req: &impl UsableRequest) -> &CookieConfig {
         .expect("CookieConfig not found")
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, StructOpt)]
 pub struct CookieConfig {
+    #[structopt(name = "cookie-key", env = "COOKIE_KEY", hide_env_values = true)]
     pub key: Key,
+
+    #[structopt(name = "cookie-domain", env = "COOKIE_DOMAIN", long)]
+    pub domain: String,
+
+    #[structopt(name = "cookie-path", env = "COOKIE_PATH", long)]
+    pub path: String,
 }
 
 pub trait CookieDough {
@@ -88,19 +98,21 @@ impl UsableRequest for ServiceRequest {
 pub fn bake_cookie<V: CookieDough + Serialize>(
     value: &V,
     key: &Key,
+    domain: String,
+    path: String,
 ) -> Result<CookieBuilder<'static>, CryptoError> {
     let val = encrypt(value, key)?;
     Ok(Cookie::build(V::COOKIE_NAME, val)
         .http_only(true)
         .same_site(SameSite::Strict)
-        .domain("localhost")
-        .path("/"))
+        .domain(domain)
+        .path(path))
 }
 
-pub fn final_cookie<T: CookieDough>() -> CookieBuilder<'static> {
+pub fn final_cookie<'c, T: CookieDough>(domain: String, path: String) -> CookieBuilder<'c> {
     Cookie::build(T::COOKIE_NAME, "")
         .http_only(true)
-        .domain("localhost")
-        .path("/")
+        .domain(domain)
+        .path(path)
         .max_age(Duration::seconds(0))
 }

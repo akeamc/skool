@@ -1,4 +1,5 @@
 import useSWR, { SWRResponse } from "swr";
+import { API_ENDPOINT } from "./api";
 import { useAuth } from "./auth";
 
 export interface Timetable {
@@ -15,7 +16,7 @@ export function useTimetables(): SWRResponse<Timetable[]> {
   const { authenticated } = useAuth();
 
   return useSWR(authenticated ? "/schedule/timetables" : null, async () => {
-    return fetch(`http://localhost:8000/schedule/timetables`, {
+    return fetch(`${API_ENDPOINT}/schedule/timetables`, {
       credentials: "include",
     }).then((res) => res.json());
   });
@@ -44,7 +45,7 @@ export function useLessons({timetable, year, week}: UseLessons): SWRResponse<Les
     timetable && authenticated && year && week ? `/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}` : null,
     async (path) => {
       return fetch(
-        `http://localhost:8000${path}`,
+        `${API_ENDPOINT}${path}`,
         {
           credentials: "include",
         }

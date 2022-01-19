@@ -1,3 +1,6 @@
+use std::num::ParseIntError;
+use std::str::FromStr;
+
 use aes_gcm_siv::aead::{Aead, NewAead};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce};
 use base64::URL_SAFE_NO_PAD;
@@ -31,15 +34,20 @@ impl From<aes_gcm_siv::aead::Error> for CryptoError {
 }
 
 const NONCE_LEN: usize = 12;
-const KEY_LEN: usize = 32;
-pub type Key = [u8; KEY_LEN];
+
+#[derive(Clone, Copy, Debug)]
+pub struct Key([u8; Self::LEN]);
+
+impl Key {
+    pub const LEN: usize = 32;
+}
 
 fn encrypt_bytes(val: &impl Serialize, key: &Key) -> Result<Vec<u8>, CryptoError> {
     let plaintext = rmp_serde::to_vec(val)?;
     let mut nonce = [0_u8; NONCE_LEN];
     rand::thread_rng().fill(&mut nonce);
 
-    let cipher = Aes256GcmSiv::new(aes_gcm_siv::Key::from_slice(key));
+    let cipher = Aes256GcmSiv::new(aes_gcm_siv::Key::from_slice(&key.0));
     let mut out = cipher.encrypt(Nonce::from_slice(&nonce), plaintext.as_ref())?;
     out.extend_from_slice(&nonce);
 
@@ -56,7 +64,7 @@ where
     }
 
     let (ciphertext, nonce) = bytes.split_at(bytes.len() - NONCE_LEN);
-    let cipher = Aes256GcmSiv::new(aes_gcm_siv::Key::from_slice(key));
+    let cipher = Aes256GcmSiv::new(aes_gcm_siv::Key::from_slice(&key.0));
 
     let plaintext = cipher.decrypt(Nonce::from_slice(nonce), ciphertext)?;
     rmp_serde::from_read_ref(&plaintext).map_err(|e| e.into())
@@ -72,4 +80,28 @@ where
 {
     let ciphertext = base64::decode_config(val, URL_SAFE_NO_PAD)?;
     decrypt_bytes(&ciphertext, key)
+}
+
+#[derive(Debug, Error)]
+pub enum ParseKeyError {
+    #[error("{0}")]
+    Hex(#[from] ParseIntError),
+
+    #[error("overflow")]
+    Overflow,
+}
+
+impl FromStr for Key {
+    type Err = ParseKeyError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let vec = (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+            .collect::<Result<Vec<_>, ParseIntError>>()?;
+
+        vec.try_into()
+            .map(Self)
+            .map_err(|_| ParseKeyError::Overflow)
+    }
 }

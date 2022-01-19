@@ -25,11 +25,11 @@ async fn login(
     JsonOrCookie(info): JsonOrCookie<LoginInfo>,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let CookieConfig { key } = cookie_config(&req);
+    let CookieConfig { key, domain, path } = cookie_config(&req);
 
     let session = start_session(&info.username, &info.password).await?;
-    let login_info = bake_cookie(&info, key)?.permanent().finish();
-    let session_cookie = bake_cookie(&session, key)?
+    let login_info = bake_cookie(&info, key, domain.to_owned(), path.to_owned())?.permanent().finish();
+    let session_cookie = bake_cookie(&session, key, domain.to_owned(), path.to_owned())?
         .expires(Expiration::Session)
         .finish();
 
@@ -40,11 +40,13 @@ async fn login(
         .body("OK"))
 }
 
-async fn logout() -> HttpResponse {
+async fn logout(req: HttpRequest) -> HttpResponse {
+    let CookieConfig { key: _, domain, path } = cookie_config(&req);
+
     HttpResponse::NoContent()
-        .cookie(final_cookie::<Session>().finish())
-        .cookie(final_cookie::<LoginInfo>().finish())
-        .cookie(final_cookie::<ScheduleCredentials>().finish())
+        .cookie(final_cookie::<Session>(domain.to_owned(), path.to_owned()).finish())
+        .cookie(final_cookie::<LoginInfo>(domain.to_owned(), path.to_owned()).finish())
+        .cookie(final_cookie::<ScheduleCredentials>(domain.to_owned(), path.to_owned()).finish())
         .insert_header(CacheControl(vec![CacheDirective::Private]))
         .body("")
 }

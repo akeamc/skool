@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import useSWR from "swr";
+import { API_ENDPOINT } from "./api";
 import { retryRequest } from "./retry";
 
 async function login(
@@ -16,7 +17,7 @@ async function login(
   const req = { username, password };
   const hasBody = Object.keys(req).length > 0;
 
-  const res = await retryRequest(fetch("http://localhost:8000/auth/login", {
+  const res = await retryRequest(fetch(`${API_ENDPOINT}/auth/login`, {
     method: "POST",
     body: hasBody ? JSON.stringify(req) : undefined,
     credentials: "include",
@@ -72,7 +73,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
   }, []);
 
   const bruhLogout = useCallback(async () => {
-    await fetch("http://localhost:8000/auth/logout", {
+    await fetch(`${API_ENDPOINT}/auth/logout`, {
       credentials: "include",
     });
 
@@ -95,7 +96,7 @@ export const useToken = () => {
   const {authenticated} = useAuth();
 
   return useSWR(authenticated ? `/token` : null, async () => {
-    const res = await fetch("http://localhost:8000/auth/token", {
+    const res = await fetch(`${API_ENDPOINT}/auth/token`, {
       credentials: "include",
     });
 
