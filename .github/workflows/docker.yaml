@@ -30,7 +30,7 @@ jobs:
           file: ./skool/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
-            ghcr.io/skolorna/skool:${{ steps.prep.outputs.version }}
-            ghcr.io/skolorna/skool:latest
+            ghcr.io/thepiconerd/skool:${{ steps.prep.outputs.version }}
+            ghcr.io/thepiconerd/skool:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
