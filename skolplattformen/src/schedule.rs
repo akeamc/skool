@@ -42,7 +42,7 @@ pub enum GetScopeError {
 }
 
 #[instrument(skip_all)]
-pub async fn get_scope(client: &Client) -> Result<String, GetScopeError> {
+async fn get_scope(client: &Client) -> Result<String, GetScopeError> {
     lazy_static! {
         static ref NOVA_WIDGET: Selector = Selector::parse("nova-widget").unwrap();
     }
@@ -64,6 +64,14 @@ pub async fn get_scope(client: &Client) -> Result<String, GetScopeError> {
     debug!(scope = scope.as_str());
 
     Ok(scope)
+}
+
+pub async fn get_schedule_credentials(
+    client: &Client,
+) -> Result<ScheduleCredentials, GetScopeError> {
+    let scope = get_scope(client).await?;
+
+    Ok(ScheduleCredentials { scope })
 }
 
 #[derive(Debug, Serialize, Deserialize)]

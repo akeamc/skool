@@ -7,6 +7,7 @@ import styles from "./timetable.module.scss";
 import { useContainerQuery } from "react-container-query";
 import { Query } from "react-container-query/lib/interfaces";
 import { useTime } from "../../lib/time";
+import { useToken } from "../../lib/auth";
 
 const cx = classNames.bind(styles);
 
@@ -147,10 +148,13 @@ const Controls: FunctionComponent = () => {
 
 export const Timetable: FunctionComponent<Props> = ({ id }) => {
   const [cursor, setCursor] = useState<DateTime | undefined>(DateTime.now);
+  const {data: token} = useToken();
 
   const days = Array.from({ length: 5 }).map((_, i) =>
     cursor?.set({ weekday: i + 1 })
   );
+
+  const icalUrl = id && token ? `http://localhost:8000/schedule/timetables/${id}/lessons.ics?token=${token}` : undefined;
 
   return (
     <TimetableContext.Provider
@@ -180,6 +184,7 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
           ))}
         </main>
       </div>
+      <a href={icalUrl}><code>{icalUrl}</code></a>
     </TimetableContext.Provider>
   );
 };

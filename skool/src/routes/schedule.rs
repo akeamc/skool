@@ -1,31 +1,46 @@
-use std::rc::Rc;
+use std::{rc::Rc, str::FromStr};
 
 use actix_web::{
     cookie::Expiration,
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
+    http::header::{self, CacheControl, CacheDirective},
     web, HttpMessage, HttpResponse,
 };
-use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
+use agenda::build_calendar;
+use chrono::{Datelike, Duration, IsoWeek, NaiveDate, Utc, Weekday};
 use futures::{
     future::{ok, LocalBoxFuture, Ready},
-    FutureExt,
+    stream, FutureExt, StreamExt,
 };
+use mime::Mime;
 use serde::Deserialize;
 use skolplattformen::{
-    auth::Session,
-    schedule::{get_scope, get_timetable, lessons_by_week, list_timetables, ScheduleCredentials},
+    auth::{start_session, Session},
+    schedule::{
+        get_schedule_credentials, get_timetable, lessons_by_week, list_timetables,
+        ScheduleCredentials,
+    },
 };
-use skool_cookie::{bake_cookie, cookie_config, CookieConfig, CookieDough, UsableRequest};
-use tracing::{instrument, trace, trace_span, Instrument};
+use skool_cookie::{
+    bake_cookie, cookie_config, crypto::decrypt, CookieConfig, CookieDough, UsableRequest,
+};
+use tracing::{debug, instrument, trace, trace_span, Instrument};
 
-use crate::error::{AppError, AppResult};
+use crate::{
+    error::{AppError, AppResult},
+    WebhookConfig,
+};
+
+use super::auth::LoginInfo;
 
 async fn timetables(
     session: Session,
     credentials: web::ReqData<ScheduleCredentials>,
 ) -> AppResult<HttpResponse> {
     let timetables = list_timetables(&session.into_client()?, &credentials).await?;
-    Ok(HttpResponse::Ok().json(timetables))
+    Ok(HttpResponse::Ok()
+        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .json(timetables))
 }
 
 async fn timetable(
@@ -34,7 +49,9 @@ async fn timetable(
     id: web::Path<String>,
 ) -> AppResult<HttpResponse> {
     let timetable = get_timetable(&session.into_client()?, &credentials, &id).await?;
-    Ok(HttpResponse::Ok().json(timetable))
+    Ok(HttpResponse::Ok()
+        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .json(timetable))
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,7 +81,55 @@ async fn lessons(
         .iso_week()
         .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
     let lessons = lessons_by_week(&client, &credentials, &timetable, week).await?;
-    Ok(HttpResponse::Ok().json(lessons))
+    Ok(HttpResponse::Ok()
+        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .json(lessons))
+}
+
+#[derive(Debug, Deserialize)]
+struct IcalQuery {
+    token: String,
+}
+
+async fn lessons_ical(
+    id: web::Path<String>,
+    query: web::Query<IcalQuery>,
+    conf: web::Data<WebhookConfig>,
+) -> AppResult<HttpResponse> {
+    let info = decrypt::<LoginInfo>(&query.token, &conf.key)?;
+    let client = start_session(&info.username, &info.password)
+        .await?
+        .into_client()?;
+    let schedule_credentials = get_schedule_credentials(&client).await?;
+    let timetable = get_timetable(&client, &schedule_credentials, &id)
+        .await?
+        .ok_or(AppError::TimetableNotFound)?;
+    let now = Utc::now();
+
+    let mut lessons = vec![];
+
+    let weeks = stream::iter(0..25).map(|i| (now + Duration::weeks(i)).iso_week());
+
+    let mut stream = weeks
+        .map(|w| lessons_by_week(&client, &schedule_credentials, &timetable, w))
+        .buffer_unordered(5);
+
+    while let Some(response) = stream.next().await {
+        let mut vec = response?;
+
+        lessons.append(&mut vec);
+    }
+
+    debug!("found {} lessons", lessons.len());
+
+    let calendar = build_calendar(lessons.into_iter());
+
+    Ok(HttpResponse::Ok()
+        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .insert_header(header::ContentType(
+            Mime::from_str("text/calendar").unwrap(),
+        ))
+        .body(calendar.to_string()))
 }
 
 struct CredentialsTransform {}
@@ -102,9 +167,9 @@ async fn schedule_credentials(req: &impl UsableRequest) -> AppResult<(ScheduleCr
             trace!("no cookie :(");
 
             let client = Session::from_req(req)?.into_client()?;
-            let scope = get_scope(&client).await?;
+            let credentials = get_schedule_credentials(&client).await?;
 
-            Ok((ScheduleCredentials { scope }, true))
+            Ok((credentials, true))
         }
     }
 }
@@ -161,9 +226,21 @@ where
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/timetables")
-            .wrap(CredentialsTransform {})
-            .service(web::resource("").route(web::get().to(timetables)))
-            .service(web::resource("/{id}").route(web::get().to(timetable)))
-            .service(web::resource("/{id}/lessons").route(web::get().to(lessons))),
+            .service(
+                web::resource("")
+                    .route(web::get().to(timetables))
+                    .wrap(CredentialsTransform {}),
+            )
+            .service(
+                web::resource("/{id}")
+                    .route(web::get().to(timetable))
+                    .wrap(CredentialsTransform {}),
+            )
+            .service(
+                web::resource("/{id}/lessons")
+                    .route(web::get().to(lessons))
+                    .wrap(CredentialsTransform {}),
+            )
+            .service(web::resource("/{id}/lessons.ics").route(web::get().to(lessons_ical))),
     );
 }

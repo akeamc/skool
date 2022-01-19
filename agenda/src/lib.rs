@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use chrono::{DateTime, Duration, Utc};
 
 use csscolorparser::Color;
+use icalendar::{Calendar, Component, Event};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -24,6 +25,26 @@ pub trait LessonLike {
     fn id(&self) -> Uuid;
 
     fn color(&self) -> Option<&Color>;
+
+    fn to_event(&self) -> Event {
+        let mut event = Event::new();
+
+        event
+            .starts(self.start())
+            .ends(self.end())
+            .uid(&self.id().to_string())
+            .summary(&self.course().unwrap_or_else(|| "(Namnlös)".into()));
+
+        if let Some(location) = self.location() {
+            event.location(&location);
+        }
+
+        if let Some(teacher) = self.teacher() {
+            event.description(&teacher);
+        }
+
+        event.done()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,4 +86,8 @@ impl LessonLike for Lesson {
     fn color(&self) -> Option<&Color> {
         self.color.as_ref()
     }
+}
+
+pub fn build_calendar<T: LessonLike>(lessons: impl Iterator<Item = T>) -> Calendar {
+    Calendar::from_iter(lessons.map(|l| l.to_event()))
 }

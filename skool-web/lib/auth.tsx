@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import useSWR from "swr";
 import { retryRequest } from "./retry";
 
 async function login(
@@ -89,3 +90,21 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+export const useToken = () => {
+  const {authenticated} = useAuth();
+
+  return useSWR(authenticated ? `/token` : null, async () => {
+    const res = await fetch("http://localhost:8000/auth/token", {
+      credentials: "include",
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new Error(text);
+    }
+
+    return text;
+  });
+}

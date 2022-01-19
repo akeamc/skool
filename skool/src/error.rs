@@ -13,6 +13,9 @@ pub enum AppError {
 
     #[error("timetable not found")]
     TimetableNotFound,
+
+    #[error("invalid token")]
+    InvalidToken,
 }
 
 impl ResponseError for AppError {
@@ -21,6 +24,7 @@ impl ResponseError for AppError {
             AppError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::TimetableNotFound => StatusCode::NOT_FOUND,
+            AppError::InvalidToken => StatusCode::BAD_REQUEST,
         }
     }
 }
@@ -35,8 +39,14 @@ impl From<AuthError> for AppError {
 }
 
 impl From<CryptoError> for AppError {
-    fn from(_: CryptoError) -> Self {
-        Self::InternalError
+    fn from(e: CryptoError) -> Self {
+        match e {
+            CryptoError::Encode(_) => Self::InternalError,
+            CryptoError::Decode(_) => Self::InvalidToken,
+            CryptoError::Aes => Self::InvalidToken,
+            CryptoError::Base64(_) => Self::InvalidToken,
+            CryptoError::CiphertextTooShort => Self::InvalidToken,
+        }
     }
 }
 

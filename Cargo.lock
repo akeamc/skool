@@ -245,6 +245,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "csscolorparser",
+ "icalendar",
  "serde",
  "uuid",
 ]
@@ -945,6 +946,16 @@ dependencies = [
  "native-tls",
  "tokio",
  "tokio-native-tls",
+]
+
+[[package]]
+name = "icalendar"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9ef924cc883333ecdc23b8c4a677119ec6a2db9ef7748a2ae74e77c91ef14df"
+dependencies = [
+ "chrono",
+ "uuid",
 ]
 
 [[package]]
@@ -1955,9 +1966,11 @@ version = "0.1.0"
 dependencies = [
  "actix-cors",
  "actix-web",
+ "agenda",
  "chrono",
  "dotenv",
  "futures",
+ "mime",
  "reqwest",
  "serde",
  "skolplattformen",

@@ -3,7 +3,7 @@ use actix_web::{http::header, middleware::Logger, web, App, HttpServer};
 
 use dotenv::dotenv;
 
-use skool::routes;
+use skool::{routes, WebhookConfig};
 use skool_cookie::CookieConfig;
 use tracing::{info, span, Level};
 use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder, TracingLogger};
@@ -73,6 +73,10 @@ async fn main() -> std::io::Result<()> {
         key: *b"bruhbruhbruhbruhbruhbruhbruhbruh",
     };
 
+    let bot_api_config = WebhookConfig {
+        key: *b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    };
+
     HttpServer::new(move || {
         let cors = Cors::permissive();
 
@@ -81,6 +85,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(cors)
             .app_data(web::Data::new(conf))
+            .app_data(web::Data::new(bot_api_config))
             .configure(routes::config)
     })
     .bind(("0.0.0.0", 8000))?

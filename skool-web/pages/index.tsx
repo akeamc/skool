@@ -1,5 +1,5 @@
 import type { NextPage } from "next";
-import { useAuth } from "../lib/auth";
+import { useAuth, useToken } from "../lib/auth";
 import { useLessons, useTimetables } from "../lib/schedule";
 import { FunctionComponent } from "react";
 import { Login } from "../components/login";
