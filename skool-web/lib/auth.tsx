@@ -7,36 +7,52 @@ import {
   useState,
 } from "react";
 import useSWR from "swr";
+import createPersistedState from "use-persisted-state";
 import { API_ENDPOINT } from "./api";
 import { retryRequest } from "./retry";
 
-async function login(
-  username?: string,
-  password?: string,
-): Promise<void> {
+async function login(username: string, password: string): Promise<void> {
   const req = { username, password };
-  const hasBody = Object.keys(req).length > 0;
 
-  const res = await retryRequest(fetch(`${API_ENDPOINT}/auth/login`, {
-    method: "POST",
-    body: hasBody ? JSON.stringify(req) : undefined,
-    credentials: "include",
-    headers: hasBody
-      ? {
-          "Content-Type": "application/json",
-        }
-      : undefined,
-  }));
+  const res = await retryRequest(
+    fetch(`${API_ENDPOINT}/auth/login`, {
+      method: "POST",
+      body: JSON.stringify(req),
+      headers: {
+            "Content-Type": "application/json",
+          }
+    })
+  );
 
   if (!res.ok) {
     throw new Error(await res.text());
   }
 }
 
+async function getSessionToken(refreshToken: string): Promise<string> {
+  const res = await retryRequest(
+    fetch(`${API_ENDPOINT}/auth/session`, {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+  );
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+
+  const { session_token } = await res.json();
+  return session_token;
+}
+
 export interface AuthData {
   authenticated: boolean;
   loading: boolean;
   loggedOut: boolean;
+  sessionToken?: string;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -49,28 +65,30 @@ const AuthContext = createContext<AuthData>({
   logout: async () => {},
 });
 
+const useRefreshTokenState = createPersistedState("refresh_token");
+
 export const AuthProvider: FunctionComponent = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [loggedOut, setLoggedOut] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshToken, setRefreshToken] = useRefreshTokenState<string>();
+  const [sessionToken, setSessionToken] = useState<string>();
 
   useEffect(() => {
-    if (!authenticated && !loggedOut) {
-      login()
-        .then(() => setAuthenticated(true))
-        .catch(console.error)
-        .finally(() => setLoading(false));
+    if (refreshToken) {
+      getSessionToken(refreshToken).then(setSessionToken);
     }
-  }, [authenticated, loggedOut]);
+  }, [refreshToken]);
 
-  const bruhLogin = useCallback(async (username: string, password: string) => {
+  const bruhLogin = async (username: string, password: string) => {
     setLoading(true);
 
-    await login(username, password);
-
-    setAuthenticated(true);
-    setLoading(false);
-  }, []);
+    await login(username, password)
+      .then(() => {
+        setAuthenticated(true);
+      })
+      .finally(() => setLoading(false));
+  };
 
   const bruhLogout = useCallback(async () => {
     await fetch(`${API_ENDPOINT}/auth/logout`, {
@@ -83,7 +101,14 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ authenticated, loading, loggedOut, login: bruhLogin, logout: bruhLogout }}
+      value={{
+        authenticated,
+        loading,
+        loggedOut,
+        sessionToken,
+        login: bruhLogin,
+        logout: bruhLogout,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -93,7 +118,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 export const useAuth = () => useContext(AuthContext);
 
 export const useToken = () => {
-  const {authenticated} = useAuth();
+  const { authenticated } = useAuth();
 
   return useSWR(authenticated ? `/token` : null, async () => {
     const res = await fetch(`${API_ENDPOINT}/auth/token`, {
@@ -108,4 +133,4 @@ export const useToken = () => {
 
     return text;
   });
-}
+};

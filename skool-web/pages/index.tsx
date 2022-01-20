@@ -13,7 +13,7 @@ const Home: NextPage = () => {
     <div>
       <h1>Skålplattformen 🥂</h1>
       <pre>{JSON.stringify(auth, null, 2)}</pre>
-      {!auth.authenticated && !auth.loading && <Login />}
+      {!auth.authenticated && <Login />}
       {auth.authenticated && (
         <button onClick={logout} type="button">
           Log out
