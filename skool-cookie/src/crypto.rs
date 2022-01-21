@@ -102,6 +102,8 @@ impl FromStr for Key {
 
         vec.try_into()
             .map(Self)
-            .map_err(|_| ParseKeyError::Overflow)
+            .map_err(|_| 
+                ParseKeyError::Overflow
+            )
     }
 }
