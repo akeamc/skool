@@ -4,7 +4,7 @@ use actix_web::{http::header, middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 
 use skool::{routes, WebhookConfig};
-use skool_cookie::CookieConfig;
+use skool_crypto::CryptoConfig;
 use structopt::StructOpt;
 use tracing::{info, span, Level};
 use tracing_actix_web::{DefaultRootSpanBuilder, RootSpanBuilder, TracingLogger};
@@ -68,7 +68,7 @@ impl RootSpanBuilder for CustomRootSpanBuilder {
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(flatten)]
-    cookie: CookieConfig,
+    crypto: CryptoConfig,
 
     #[structopt(flatten)]
     webhook: WebhookConfig,
@@ -88,7 +88,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(TracingLogger::<CustomRootSpanBuilder>::new())
             .wrap(Logger::default())
             .wrap(cors)
-            .app_data(web::Data::new(opt.cookie.clone()))
+            .app_data(web::Data::new(opt.crypto.clone()))
             .app_data(web::Data::new(opt.webhook))
             .configure(routes::config)
     })

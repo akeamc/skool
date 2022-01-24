@@ -1,6 +1,6 @@
 [package]
 name = "skool"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ serde = { version = "1.0.133", features = ["derive"] }
 skolplattformen = { path = "../skolplattformen" }
 thiserror = "1.0.30"
 futures = "0.3.19"
-skool-cookie = { path = "../skool-cookie" }
+skool-crypto = { path = "../skool-crypto" }
 actix-cors = "0.6.0-beta.8"
 chrono = "0.4.19"
 tracing-subscriber = "0.3.5"
@@ -23,3 +23,4 @@ uuid = { version = "0.8.2", features = ["v4"] }
 agenda = { path = "../agenda" }
 mime = "0.3.16"
 structopt = "0.3.26"
+actix-web-httpauth = "0.6.0-beta.7"

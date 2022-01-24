@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, ResponseError};
 use skolplattformen::{auth::AuthError, schedule::GetScopeError};
-use skool_cookie::{crypto::CryptoError, CookieError};
+use skool_crypto::crypto::CryptoError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -53,15 +53,6 @@ impl From<CryptoError> for AppError {
 impl From<reqwest::Error> for AppError {
     fn from(_: reqwest::Error) -> Self {
         Self::InternalError
-    }
-}
-
-impl From<CookieError> for AppError {
-    fn from(e: CookieError) -> Self {
-        match e {
-            CookieError::Crypto(e) => e.into(),
-            CookieError::MissingCookie => Self::BadRequest("missing cookie".to_owned()),
-        }
     }
 }
 

@@ -11,15 +11,13 @@ use reqwest::{
 use scraper::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use skool_cookie::Cookie;
 use thiserror::Error;
 use tracing::{debug, instrument, trace};
 use uuid::Uuid;
 
 use crate::util::get_html;
 
-#[derive(Debug, Serialize, Deserialize, Cookie, Clone)]
-#[cookie_name("schedule_creds")]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScheduleCredentials {
     pub scope: String,
 }

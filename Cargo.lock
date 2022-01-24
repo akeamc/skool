@@ -198,6 +198,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-web-httpauth"
+version = "0.6.0-beta.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95ff332baee0f5ce55d94c690acb33a390d04a458d4bbd40a593cf847ac74ba4"
+dependencies = [
+ "actix-service",
+ "actix-utils",
+ "actix-web",
+ "base64",
+ "futures-core",
+ "futures-util",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2013,7 +2028,6 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
- "skool-cookie",
  "thiserror",
  "tracing",
  "uuid",
@@ -2021,10 +2035,11 @@ dependencies = [
 
 [[package]]
 name = "skool"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "actix-cors",
  "actix-web",
+ "actix-web-httpauth",
  "agenda",
  "chrono",
  "dotenv",
@@ -2033,7 +2048,7 @@ dependencies = [
  "reqwest",
  "serde",
  "skolplattformen",
- "skool-cookie",
+ "skool-crypto",
  "structopt",
  "thiserror",
  "tracing",
@@ -2043,27 +2058,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "skool-cookie"
+name = "skool-crypto"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "actix-web-httpauth",
  "aes-gcm-siv",
  "base64",
  "futures",
  "rand 0.8.4",
  "rmp-serde",
  "serde",
- "skool-cookie-derive",
  "structopt",
  "thiserror",
-]
-
-[[package]]
-name = "skool-cookie-derive"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
 ]
 
 [[package]]

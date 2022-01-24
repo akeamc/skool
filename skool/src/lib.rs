@@ -1,8 +1,7 @@
-use skool_cookie::crypto::Key;
+use skool_crypto::crypto::Key;
 use structopt::StructOpt;
 
 pub mod error;
-pub mod extractor;
 pub mod routes;
 
 #[derive(Debug, Clone, Copy, StructOpt)]

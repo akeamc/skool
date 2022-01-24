@@ -1,5 +1,5 @@
 [package]
-name = "skool-cookie"
+name = "skool-crypto"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,8 +11,8 @@ aes-gcm-siv = "0.10.3"
 rmp-serde = "0.15.5"
 rand = "0.8.4"
 thiserror = "1.0.30"
-skool-cookie-derive = { path = "skool-cookie-derive" }
 serde = { version = "1.0.133", features = ["derive"] }
 futures = "0.3.19"
 base64 = "0.13.0"
 structopt = "0.3.26"
+actix-web-httpauth = "0.6.0-beta.7"
