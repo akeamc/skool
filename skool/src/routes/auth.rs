@@ -9,7 +9,7 @@ use skool_crypto::{
     crypto_config, CryptoConfig,
 };
 
-use crate::{error::AppResult, WebhookConfig};
+use crate::error::AppResult;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoginInfo {

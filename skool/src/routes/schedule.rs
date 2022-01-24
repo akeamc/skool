@@ -7,7 +7,7 @@ use actix_web::{
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use agenda::build_calendar;
 use chrono::{Datelike, Duration, IsoWeek, NaiveDate, Utc, Weekday};
-use futures::{stream, FutureExt, StreamExt};
+use futures::{stream, StreamExt};
 use mime::Mime;
 use serde::Deserialize;
 use skolplattformen::{

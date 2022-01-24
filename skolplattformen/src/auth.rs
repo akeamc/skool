@@ -131,6 +131,19 @@ async fn fill_jar_with_session_data(
     Ok(())
 }
 
+/// Start a session.
+///
+/// ```
+/// # dotenv::dotenv().ok();
+/// # let username = std::env::var("SKOLPLATTFORMEN_TEST_USERNAME").expect("SKOLPLATTFORMEN_TEST_USERNAME not set");
+/// # let password = std::env::var("SKOLPLATTFORMEN_TEST_PASSWORD").expect("SKOLPLATTFORMEN_TEST_PASSWORD not set");
+/// #
+/// # tokio_test::block_on(async {
+/// let session = skolplattformen::auth::start_session(&username, &password).await.unwrap();
+///
+/// assert!(session.cookie_store.iter_any().count() > 0);
+/// # })
+/// ```
 #[instrument(skip(password))]
 pub async fn start_session(username: &str, password: &str) -> Result<Session, AuthError> {
     let cookie_store = CookieStore::default();

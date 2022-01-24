@@ -23,3 +23,7 @@ uuid = { version = "0.8.2", features = ["v5"] }
 csscolorparser = { version = "0.5.0", features = ["serde"] }
 
 [features]
+
+[dev-dependencies]
+dotenv = "0.15.0"
+tokio-test = "0.4.2"
