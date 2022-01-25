@@ -19,6 +19,9 @@ pub enum AuthError {
 
     #[error("reqwest error")]
     ReqwestError(#[from] reqwest::Error),
+
+    #[error("scraping failed")]
+    ScrapingFailed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,7 +67,7 @@ async fn fill_jar_with_session_data(
         .find(|e| e.inner_html() == "Elever")
         .map(|e| e.value().attr("href"))
         .flatten()
-        .unwrap();
+        .ok_or(AuthError::ScrapingFailed)?;
 
     let student_login_url = format!(
         "https://login001.stockholm.se/siteminderagent/forms/{}",
@@ -80,7 +83,7 @@ async fn fill_jar_with_session_data(
         .next()
         .map(|e| e.value().attr("href"))
         .flatten()
-        .unwrap();
+        .ok_or(AuthError::ScrapingFailed)?;
 
     let doc = get_html(
         &client,
@@ -91,7 +94,7 @@ async fn fill_jar_with_session_data(
     )
     .await?;
 
-    let mut form_body = scrape_form(&doc).unwrap();
+    let mut form_body = scrape_form(&doc).ok_or(AuthError::ScrapingFailed)?;
 
     form_body.insert("user".to_owned(), username.to_owned());
     form_body.insert("password".to_owned(), password.to_owned());
@@ -103,7 +106,8 @@ async fn fill_jar_with_session_data(
         .send()
         .await?;
 
-    let form_body = scrape_form(&Html::parse_document(&res.text().await?)).unwrap();
+    let form_body =
+        scrape_form(&Html::parse_document(&res.text().await?)).ok_or(AuthError::ScrapingFailed)?;
 
     let res = client
         .post("https://login001.stockholm.se/affwebservices/public/saml2sso")
@@ -118,7 +122,7 @@ async fn fill_jar_with_session_data(
 
     let doc = Html::parse_document(&res.text().await?);
 
-    let form_body = scrape_form(&doc).unwrap();
+    let form_body = scrape_form(&doc).ok_or(AuthError::ScrapingFailed)?;
 
     client
         .post("https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/response")

@@ -34,6 +34,7 @@ impl From<AuthError> for AppError {
         match e {
             AuthError::BadCredentials => Self::BadRequest("bad credentials".to_owned()),
             AuthError::ReqwestError(_) => Self::InternalError,
+            AuthError::ScrapingFailed => Self::InternalError,
         }
     }
 }

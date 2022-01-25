@@ -221,11 +221,11 @@ pub fn try_into_agenda_lesson(
     Some(agenda::Lesson {
         start: Lesson::TZ
             .from_local_datetime(&date.and_time(start))
-            .unwrap()
+            .single()?
             .with_timezone(&Utc),
         end: Lesson::TZ
             .from_local_datetime(&date.and_time(end))
-            .unwrap()
+            .single()?
             .with_timezone(&Utc),
         course,
         teacher,
