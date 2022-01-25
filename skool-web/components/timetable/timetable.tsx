@@ -1,6 +1,13 @@
 import classNames from "classnames/bind";
 import { DateTime, Duration } from "luxon";
-import { createContext, FunctionComponent, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  FunctionComponent,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Lesson, useLessons } from "../../lib/schedule";
 import { Scale } from "./scale";
 import styles from "./timetable.module.scss";
@@ -33,7 +40,7 @@ const lessonContainerQuery: Query = {
   },
   narrow: {
     maxWidth: 192,
-  }
+  },
 };
 
 const Indicator: FunctionComponent = () => {
@@ -50,37 +57,40 @@ const Indicator: FunctionComponent = () => {
   }, []);
 
   return (
-    <div ref={ref} className={cx("indicator")} style={{["--secs" as any]: now.hour * 3600 + now.minute * 60 + now.second}} />
+    <div
+      ref={ref}
+      className={cx("indicator")}
+      style={{
+        ["--secs" as any]: now.hour * 3600 + now.minute * 60 + now.second,
+      }}
+    />
   );
-}
+};
 
-const FloatingLesson: FunctionComponent<{ lesson: OptimizedLesson }> = ({ lesson }) => {
+const FloatingLesson: FunctionComponent<{ lesson: OptimizedLesson }> = ({
+  lesson,
+}) => {
   const [params, containerRef] = useContainerQuery(lessonContainerQuery, {});
   const now = useTime();
 
   return (
     <div
       ref={containerRef}
-      className={cx("event", params, {past: now >= lesson.end})}
+      className={cx("event", params, { past: now >= lesson.end })}
       style={{
         ["--start-secs" as any]: lesson.startSecs,
         ["--duration-secs" as any]: lesson.durationSecs,
       }}
     >
       <div className={cx("content")}>
-      <h3>{lesson.course}</h3>
-      <span>
-        <time>
-          {lesson.start.toLocaleString(DateTime.TIME_SIMPLE)}
-        </time>
-        –
-        <time>
-          {lesson.end.toLocaleString(DateTime.TIME_SIMPLE)}
-        </time>
-        {["", lesson.location, lesson.teacher]
-          .filter((v) => typeof v == "string")
-          .join(" · ")}
-      </span>
+        <h3>{lesson.course}</h3>
+        <span>
+          <time>{lesson.start.toLocaleString(DateTime.TIME_SIMPLE)}</time>–
+          <time>{lesson.end.toLocaleString(DateTime.TIME_SIMPLE)}</time>
+          {["", lesson.location, lesson.teacher]
+            .filter((v) => typeof v == "string")
+            .join(" · ")}
+        </span>
       </div>
     </div>
   );
@@ -101,8 +111,8 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
   const lessons: OptimizedLesson[] =
     (day
       ? data?.reduce((acc, l) => {
-        const start = DateTime.fromISO(l.start).setZone(day.zone);
-        const end = DateTime.fromISO(l.end).setZone(day.zone);
+          const start = DateTime.fromISO(l.start).setZone(day.zone);
+          const end = DateTime.fromISO(l.end).setZone(day.zone);
 
           if (start.hasSame(day, "day")) {
             acc.push({
@@ -111,18 +121,16 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
               durationSecs: end.diff(start).as("seconds"),
               start,
               end,
-            })
+            });
           }
 
           return acc;
-    }, [] as OptimizedLesson[])
+        }, [] as OptimizedLesson[])
       : undefined) ?? [];
 
   return (
     <div className={styles.col}>
-      {isToday && (
-        <Indicator />
-      )}
+      {isToday && <Indicator />}
       {lessons.map((lesson) => (
         <FloatingLesson lesson={lesson} key={lesson.id} />
       ))}

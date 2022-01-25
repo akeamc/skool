@@ -10,9 +10,8 @@ export const Login: FunctionComponent = () => {
       initialValues={{ username: "", password: "" }}
       onSubmit={({ username, password }, { setStatus }) => {
         setStatus();
-        login(username, password).catch((e) => setStatus(e.toString()))
-      }
-      }
+        login(username, password).catch((e) => setStatus(e.toString()));
+      }}
     >
       {({ status }) => (
         <Form>

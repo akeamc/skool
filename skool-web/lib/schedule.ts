@@ -16,13 +16,18 @@ export function useTimetables(): SWRResponse<Timetable[]> {
   const { sessionToken } = useAuth();
   const { data: credentials } = useSessionCredentials();
 
-  return useSWR(sessionToken && credentials ? `/schedule/timetables?scope=${credentials.scope}` : null, async (path) => {
-    return fetch(`${API_ENDPOINT}${path}`, {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      }
-    }).then((res) => res.json());
-  });
+  return useSWR(
+    sessionToken && credentials
+      ? `/schedule/timetables?scope=${credentials.scope}`
+      : null,
+    async (path) => {
+      return fetch(`${API_ENDPOINT}${path}`, {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+      }).then((res) => res.json());
+    }
+  );
 }
 
 export interface Lesson {
@@ -41,21 +46,24 @@ interface UseLessons {
   week?: number;
 }
 
-export function useLessons({ timetable, year, week }: UseLessons): SWRResponse<Lesson[]> {
+export function useLessons({
+  timetable,
+  year,
+  week,
+}: UseLessons): SWRResponse<Lesson[]> {
   const { sessionToken } = useAuth();
   const { data: credentials } = useSessionCredentials();
 
   return useSWR(
-    timetable && sessionToken && year && week && credentials ? `/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}&scope=${credentials.scope}` : null,
+    timetable && sessionToken && year && week && credentials
+      ? `/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}&scope=${credentials.scope}`
+      : null,
     async (path) => {
-      return fetch(
-        `${API_ENDPOINT}${path}`,
-        {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          }
-        }
-      ).then((res) => res.json());
+      return fetch(`${API_ENDPOINT}${path}`, {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+      }).then((res) => res.json());
     }
   );
 }

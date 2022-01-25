@@ -68,25 +68,22 @@ const AuthContext = createContext<AuthData>({
 });
 
 const REFRESH_TOKEN_KEY = "refresh_token";
-const SESSION_TOKEN_KEY = "session_token";
 
 const useRefreshTokenState = createPersistedState(REFRESH_TOKEN_KEY);
-const useSessionTokenState =
-  typeof window === "undefined"
-    ? () => []
-    : createPersistedState(SESSION_TOKEN_KEY, window.sessionStorage);
 
 export const AuthProvider: FunctionComponent = ({ children }) => {
   const [loggedOut, setLoggedOut] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshToken, setRefreshToken] = useRefreshTokenState<string>();
-  const [sessionToken, setSessionToken] = useSessionTokenState<string>();
+  const [sessionToken, setSessionToken] = useState<string>();
 
   useEffect(() => {
     if (refreshToken && !sessionToken) {
-      createSession({ refresh_token: refreshToken }).then(({ session_token }) =>
-        setSessionToken(session_token)
-      );
+      createSession({ refresh_token: refreshToken })
+        .then(({ session_token }) => setSessionToken(session_token))
+        .catch((error) => {
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -106,7 +103,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
   };
 
   const bruhLogout = useCallback(async () => {
-    setRefreshToken(undefined);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setSessionToken(undefined);
     setLoggedOut(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,21 +131,16 @@ interface SessionCredentials {
   scope: string;
 }
 
-export const useSessionCredentials = (): SWRResponse<
-SessionCredentials
-> => {
+export const useSessionCredentials = (): SWRResponse<SessionCredentials> => {
   const { sessionToken } = useAuth();
 
-  return useSWR(
-    sessionToken ? `/schedule/credentials` : null,
-    async () => {
-      const res = await fetch(`${API_ENDPOINT}/schedule/credentials`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      });
+  return useSWR(sessionToken ? `/schedule/credentials` : null, async () => {
+    const res = await fetch(`${API_ENDPOINT}/schedule/credentials`, {
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+      },
+    });
 
-      return res.json();
-    }
-  );
+    return res.json();
+  });
 };
