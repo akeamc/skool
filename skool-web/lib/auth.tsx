@@ -127,7 +127,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
-interface SessionCredentials {
+export interface SessionCredentials {
   scope: string;
 }
 

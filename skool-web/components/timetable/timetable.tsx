@@ -15,6 +15,7 @@ import { useContainerQuery } from "react-container-query";
 import { Query } from "react-container-query/lib/interfaces";
 import { useTime } from "../../lib/time";
 import { API_ENDPOINT } from "../../lib/api";
+import { googleAuthUrl, GOOGLE_CALENDAR_SCOPES } from "../../lib/google/oauth";
 
 const cx = classNames.bind(styles);
 
@@ -171,6 +172,7 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
         id,
       }}
     >
+      <a href={googleAuthUrl(GOOGLE_CALENDAR_SCOPES)}>auth</a>
       <Controls />
       <div className={styles.table} style={{ ["--days" as any]: days.length }}>
         <header>
