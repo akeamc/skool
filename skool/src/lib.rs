@@ -2,6 +2,7 @@ use skool_crypto::crypto::Key;
 use structopt::StructOpt;
 
 pub mod error;
+pub mod logging;
 pub mod routes;
 
 #[derive(Debug, Clone, Copy, StructOpt)]

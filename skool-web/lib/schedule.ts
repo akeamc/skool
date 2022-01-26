@@ -1,6 +1,7 @@
+import { DateTime } from "luxon";
 import useSWR, { SWRResponse } from "swr";
 import { API_ENDPOINT } from "./api";
-import { useAuth, useSessionCredentials } from "./auth";
+import { SessionCredentials, useAuth, useSessionCredentials } from "./auth";
 
 export interface Timetable {
   school_guid: string;
@@ -40,30 +41,52 @@ export interface Lesson {
   color: string | null;
 }
 
-interface UseLessons {
-  timetable?: string;
-  year?: number;
-  week?: number;
+interface FetchLessons {
+  timetable: string;
+  year: number;
+  week: number;
+}
+
+const fetchLessonsUrl = (
+  { timetable, year, week }: FetchLessons,
+  credentials: SessionCredentials
+) =>
+  `${API_ENDPOINT}/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}&scope=${credentials.scope}`;
+
+export async function fetchLessons(
+  { timetable, year, week }: FetchLessons,
+  credentials: SessionCredentials,
+  sessionToken: string
+): Promise<Lesson[]> {
+  const res = await fetch(
+    fetchLessonsUrl({ timetable, year, week }, credentials),
+    {
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+      },
+    }
+  );
+
+  return res.json();
 }
 
 export function useLessons({
   timetable,
   year,
   week,
-}: UseLessons): SWRResponse<Lesson[]> {
+}: Partial<FetchLessons>): SWRResponse<Lesson[]> {
   const { sessionToken } = useAuth();
   const { data: credentials } = useSessionCredentials();
 
   return useSWR(
     timetable && sessionToken && year && week && credentials
-      ? `/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}&scope=${credentials.scope}`
+      ? fetchLessonsUrl({ timetable, year, week }, credentials)
       : null,
-    async (path) => {
-      return fetch(`${API_ENDPOINT}${path}`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      }).then((res) => res.json());
-    }
+    () =>
+      fetchLessons(
+        { timetable: timetable!, year: year!, week: week! },
+        credentials!,
+        sessionToken!
+      )
   );
 }

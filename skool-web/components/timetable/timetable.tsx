@@ -172,7 +172,9 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
         id,
       }}
     >
-      <a href={googleAuthUrl(GOOGLE_CALENDAR_SCOPES)}>auth</a>
+      <a href={googleAuthUrl(GOOGLE_CALENDAR_SCOPES)}>
+        exportera till google calendar
+      </a>
       <Controls />
       <div className={styles.table} style={{ ["--days" as any]: days.length }}>
         <header>
