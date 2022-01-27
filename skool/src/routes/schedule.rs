@@ -88,7 +88,10 @@ async fn lessons(
         .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
     let lessons = lessons_by_week(&client, &credentials, &timetable, week).await?;
     Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(120),
+        ]))
         .json(lessons))
 }
 

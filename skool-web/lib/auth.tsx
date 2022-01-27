@@ -9,39 +9,36 @@ import {
 import useSWR, { SWRResponse } from "swr";
 import createPersistedState from "use-persisted-state";
 import { API_ENDPOINT, Either } from "./api";
-import { retryRequest } from "./retry";
 
 interface SessionFromUsernamePassword {
   username: string;
   password: string;
 }
 
-interface SessionFromRefreshToken {
-  refresh_token: string;
+interface SessionFromLoginToken {
+  login_token: string;
 }
 
 type CreateSessionRequest = Either<
   SessionFromUsernamePassword,
-  SessionFromRefreshToken
+  SessionFromLoginToken
 >;
 
 interface CreateSessionResponse {
   session_token: string;
-  refresh_token: string | null;
+  login_token: string | null;
 }
 
 async function createSession(
   data: CreateSessionRequest
 ): Promise<CreateSessionResponse> {
-  const res = await retryRequest(
-    fetch(`${API_ENDPOINT}/auth/session`, {
-      method: "POST",
-      body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-  );
+  const res = await fetch(`${API_ENDPOINT}/auth/session`, {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
   if (!res.ok) {
     throw new Error(await res.text());
@@ -67,44 +64,49 @@ const AuthContext = createContext<AuthData>({
   logout: async () => {},
 });
 
-const REFRESH_TOKEN_KEY = "refresh_token";
+const LOGIN_TOKEN_KEY = "login_token";
+const SESSION_TOKEN_KEY = "session_token";
 
-const useRefreshTokenState = createPersistedState(REFRESH_TOKEN_KEY);
+const useLoginTokenState = createPersistedState(LOGIN_TOKEN_KEY);
+const useSessionTokenState = createPersistedState(
+  SESSION_TOKEN_KEY,
+  typeof window !== "undefined" ? window.sessionStorage : undefined
+);
 
 export const AuthProvider: FunctionComponent = ({ children }) => {
   const [loggedOut, setLoggedOut] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshToken, setRefreshToken] = useRefreshTokenState<string>();
-  const [sessionToken, setSessionToken] = useState<string>();
+  const [loading, setLoading] = useState(false);
+  const [loginToken, setLoginToken] = useLoginTokenState<string>();
+  const [sessionToken, setSessionToken] = useSessionTokenState<string>();
 
   useEffect(() => {
-    if (refreshToken && !sessionToken) {
-      createSession({ refresh_token: refreshToken })
+    if (loginToken && !sessionToken) {
+      createSession({ login_token: loginToken })
         .then(({ session_token }) => setSessionToken(session_token))
-        .catch((error) => {
-          localStorage.removeItem(REFRESH_TOKEN_KEY);
+        .catch(() => {
+          localStorage.removeItem(LOGIN_TOKEN_KEY);
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const bruhLogin = async (username: string, password: string) => {
+  const login = async (username: string, password: string) => {
     setLoading(true);
 
     await createSession({ username, password })
-      .then(({ refresh_token, session_token }) => {
+      .then(({ login_token, session_token }) => {
         setSessionToken(session_token);
 
-        if (typeof refresh_token === "string") {
-          setRefreshToken(refresh_token);
+        if (typeof login_token === "string") {
+          setLoginToken(login_token);
         }
       })
       .finally(() => setLoading(false));
   };
 
-  const bruhLogout = useCallback(async () => {
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    setSessionToken(undefined);
+  const logout = useCallback(async () => {
+    localStorage.removeItem(LOGIN_TOKEN_KEY);
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
     setLoggedOut(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -116,8 +118,8 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
         loading,
         loggedOut,
         sessionToken,
-        login: bruhLogin,
-        logout: bruhLogout,
+        login,
+        logout,
       }}
     >
       {children}
@@ -134,13 +136,16 @@ export interface SessionCredentials {
 export const useSessionCredentials = (): SWRResponse<SessionCredentials> => {
   const { sessionToken } = useAuth();
 
-  return useSWR(sessionToken ? `/schedule/credentials` : null, async () => {
-    const res = await fetch(`${API_ENDPOINT}/schedule/credentials`, {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      },
-    });
+  return useSWR(
+    sessionToken ? `${API_ENDPOINT}/schedule/credentials` : null,
+    async (url) => {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+        },
+      });
 
-    return res.json();
-  });
+      return res.json();
+    }
+  );
 };

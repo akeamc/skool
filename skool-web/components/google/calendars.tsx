@@ -1,6 +1,12 @@
 import { LayoutGroup, motion } from "framer-motion";
 import { createContext, FunctionComponent, useContext, useState } from "react";
-import { useCalendarList } from "../../lib/google/calendar";
+import {
+  CalendarColors,
+  CalendarEvent,
+  insertCalendarEvent,
+  useCalendarColors,
+  useCalendarList,
+} from "../../lib/google/calendar";
 import { useGoogleAuthorization } from "./auth";
 import useSWRInfinite from "swr/infinite";
 import { DateTime } from "luxon";
@@ -10,6 +16,7 @@ import {
   useAuth,
   useSessionCredentials,
 } from "../../lib/auth";
+import chroma from "chroma-js";
 
 export const GoogleCalendarContext = createContext<{
   calendar: string | null;
@@ -80,20 +87,28 @@ export const GoogleCalendarSelector: FunctionComponent = () => {
   );
 };
 
+function toHex(str: string) {
+  let result = "";
+  for (var i = 0; i < str.length; i++) {
+    result += str.charCodeAt(i).toString(16);
+  }
+  return result;
+}
+
 export const GoogleCalendarExport: FunctionComponent<{
   timetable: string;
   sessionToken: string;
   sessionCredentials: SessionCredentials;
-}> = ({ timetable, sessionToken, sessionCredentials }) => {
+  colors: CalendarColors;
+}> = ({ timetable, sessionToken, sessionCredentials, colors }) => {
+  const authorization = useGoogleAuthorization();
   const { calendar } = useCalendarContext();
-  const authorizationHeader = useGoogleAuthorization();
   const [start] = useState(DateTime.now);
 
-  const { data, error, isValidating, mutate, size, setSize } = useSWRInfinite(
+  const { data, isValidating } = useSWRInfinite(
     (index) => start.plus({ weeks: index }).toISODate(),
     async (key) => {
       const { year, weekNumber } = DateTime.fromISO(key);
-      console.log(key);
       return fetchLessons(
         { timetable: timetable!, year, week: weekNumber },
         sessionCredentials,
@@ -101,18 +116,65 @@ export const GoogleCalendarExport: FunctionComponent<{
       );
     },
     {
-      initialSize: 10,
+      initialSize: 2,
     }
   );
+
+  const colorIds = Object.fromEntries(
+    Object.entries(colors.event).map(([id, color]) => [color.background, id])
+  );
+
+  const events: Partial<CalendarEvent>[] | undefined = data
+    ?.flat()
+    .map((lesson) => {
+      const closestColor = lesson.color
+        ? Object.entries(colorIds).reduce(
+            (closest, [color, id]) => {
+              const distance = chroma.distance(color, lesson.color!);
+              return distance < closest.distance ? { distance, id } : closest;
+            },
+            { distance: Infinity, id: "" }
+          )
+        : undefined;
+
+      return {
+        summary: lesson.course ?? "(Namnlös)",
+        description: lesson.teacher ?? undefined,
+        location: lesson.location ?? undefined,
+        start: {
+          dateTime: lesson.start,
+        },
+        end: {
+          dateTime: lesson.end,
+        },
+        colorId: closestColor?.id,
+        id: toHex(lesson.id),
+      };
+    });
 
   if (!calendar) {
     return <>Välj en kalender för att fortsätta</>;
   }
 
+  if (!authorization) {
+    return <>Vänta ...</>;
+  }
+
+  if (!events) {
+    return <>Hämtar lektioner ...</>;
+  }
+
   return (
     <div>
-      <button>Exportera</button>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
+      <button
+        onClick={() =>
+          Promise.all(
+            events.map((e) => insertCalendarEvent(authorization, calendar, e))
+          )
+        }
+      >
+        Exportera {events.length} händelser
+      </button>
     </div>
   );
 };

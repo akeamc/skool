@@ -1,9 +1,9 @@
-use std::num::ParseIntError;
 use std::str::FromStr;
 
 use aes_gcm_siv::aead::{Aead, NewAead};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce};
 use base64::URL_SAFE_NO_PAD;
+use hex::FromHexError;
 use rand::Rng;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -82,26 +82,14 @@ where
     decrypt_bytes(&ciphertext, key)
 }
 
-#[derive(Debug, Error)]
-pub enum ParseKeyError {
-    #[error("{0}")]
-    Hex(#[from] ParseIntError),
-
-    #[error("overflow")]
-    Overflow,
-}
-
 impl FromStr for Key {
-    type Err = ParseKeyError;
+    type Err = FromHexError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let vec = (0..s.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
-            .collect::<Result<Vec<_>, ParseIntError>>()?;
+        let mut data = [0_u8; Key::LEN];
 
-        vec.try_into()
-            .map(Self)
-            .map_err(|_| ParseKeyError::Overflow)
+        hex::decode_to_slice(s, &mut data)?;
+
+        Ok(Key(data))
     }
 }

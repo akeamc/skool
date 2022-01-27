@@ -21,13 +21,13 @@ pub struct LoginInfo {
 #[serde(untagged)]
 pub enum CreateSessionInfo {
     UsernamePassword(LoginInfo),
-    RefreshToken { refresh_token: String },
+    LoginToken { login_token: String },
 }
 
 #[derive(Debug, Serialize)]
 pub struct CreateSessionRes {
     session_token: String,
-    refresh_token: Option<String>,
+    login_token: Option<String>,
 }
 
 async fn create_session(
@@ -38,12 +38,12 @@ async fn create_session(
 
     let (login_info, generate_token) = match info {
         CreateSessionInfo::UsernamePassword(info) => (info, true),
-        CreateSessionInfo::RefreshToken { refresh_token } => (decrypt(&refresh_token, key)?, false),
+        CreateSessionInfo::LoginToken { login_token } => (decrypt(&login_token, key)?, false),
     };
 
     let session = start_session(&login_info.username, &login_info.password).await?;
     let session_token = encrypt(&session, key)?;
-    let refresh_token = if generate_token {
+    let login_token = if generate_token {
         Some(encrypt(&login_info, key)?)
     } else {
         None
@@ -51,7 +51,7 @@ async fn create_session(
 
     Ok(HttpResponse::Ok().json(CreateSessionRes {
         session_token,
-        refresh_token,
+        login_token,
     }))
 }
 
