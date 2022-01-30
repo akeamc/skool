@@ -3,7 +3,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use serde::{Deserialize, Serialize};
-use skolplattformen::auth::start_session;
+use skolplattformen::schedule::start_session;
 use skool_crypto::{
     crypto::{decrypt, encrypt},
     crypto_config, CryptoConfig,

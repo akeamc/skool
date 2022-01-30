@@ -10,12 +10,7 @@ import {
 import { useGoogleAuthorization } from "./auth";
 import useSWRInfinite from "swr/infinite";
 import { DateTime } from "luxon";
-import { fetchLessons, useTimetables } from "../../lib/schedule";
-import {
-  SessionCredentials,
-  useAuth,
-  useSessionCredentials,
-} from "../../lib/auth";
+import { fetchLessons } from "../../lib/schedule";
 import chroma from "chroma-js";
 
 export const GoogleCalendarContext = createContext<{
@@ -98,9 +93,8 @@ function toHex(str: string) {
 export const GoogleCalendarExport: FunctionComponent<{
   timetable: string;
   sessionToken: string;
-  sessionCredentials: SessionCredentials;
   colors: CalendarColors;
-}> = ({ timetable, sessionToken, sessionCredentials, colors }) => {
+}> = ({ timetable, sessionToken, colors }) => {
   const authorization = useGoogleAuthorization();
   const { calendar } = useCalendarContext();
   const [start] = useState(DateTime.now);
@@ -111,7 +105,6 @@ export const GoogleCalendarExport: FunctionComponent<{
       const { year, weekNumber } = DateTime.fromISO(key);
       return fetchLessons(
         { timetable: timetable!, year, week: weekNumber },
-        sessionCredentials,
         sessionToken
       );
     },

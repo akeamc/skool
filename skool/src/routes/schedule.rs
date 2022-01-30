@@ -11,11 +11,8 @@ use futures::{stream, StreamExt};
 use mime::Mime;
 use serde::Deserialize;
 use skolplattformen::{
-    auth::{start_session, Session},
-    schedule::{
-        get_schedule_credentials, get_timetable, lessons_by_week, list_timetables,
-        ScheduleCredentials,
-    },
+    schedule::{get_timetable, lessons_by_week, list_timetables},
+    schedule::{start_session, Session},
 };
 use skool_crypto::{crypto::decrypt, crypto_config, CryptoConfig};
 use tracing::{debug, instrument};
@@ -27,15 +24,11 @@ use crate::{
 
 use super::auth::LoginInfo;
 
-async fn timetables(
-    credentials: web::Query<ScheduleCredentials>,
-    bearer: BearerAuth,
-    req: HttpRequest,
-) -> AppResult<HttpResponse> {
+async fn timetables(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpResponse> {
     let CryptoConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
-    let timetables = list_timetables(&session.into_client()?, &credentials).await?;
+    let timetables = list_timetables(&session.try_into_client()?).await?;
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![CacheDirective::Private]))
         .json(timetables))
@@ -43,14 +36,15 @@ async fn timetables(
 
 async fn timetable(
     id: web::Path<String>,
-    credentials: web::Query<ScheduleCredentials>,
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
     let CryptoConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
-    let timetable = get_timetable(&session.into_client()?, &credentials, &id).await?;
+    let timetable = get_timetable(&session.try_into_client()?, &id)
+        .await?
+        .ok_or(AppError::TimetableNotFound)?;
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![CacheDirective::Private]))
         .json(timetable))
@@ -68,25 +62,24 @@ impl LessonsQuery {
     }
 }
 
-#[instrument(skip(credentials, bearer, req))]
+#[instrument(skip(bearer, req))]
 async fn lessons(
     query: web::Query<LessonsQuery>,
     id: web::Path<String>,
-    credentials: web::Query<ScheduleCredentials>,
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
     let CryptoConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
-    let client = session.into_client()?;
-    let timetable = get_timetable(&client, &credentials, &id)
+    let client = session.try_into_client()?;
+    let timetable = get_timetable(&client, &id)
         .await?
         .ok_or(AppError::TimetableNotFound)?;
     let week = query
         .iso_week()
         .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
-    let lessons = lessons_by_week(&client, &credentials, &timetable, week).await?;
+    let lessons = lessons_by_week(&client, &timetable, week).await?;
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
@@ -108,9 +101,8 @@ async fn lessons_ical(
     let info = decrypt::<LoginInfo>(&query.webhook_token, &conf.key)?;
     let client = start_session(&info.username, &info.password)
         .await?
-        .into_client()?;
-    let schedule_credentials = get_schedule_credentials(&client).await?;
-    let timetable = get_timetable(&client, &schedule_credentials, &id)
+        .try_into_client()?;
+    let timetable = get_timetable(&client, &id)
         .await?
         .ok_or(AppError::TimetableNotFound)?;
     let now = Utc::now();
@@ -120,7 +112,7 @@ async fn lessons_ical(
     let weeks = stream::iter(0..25).map(|i| (now + Duration::weeks(i)).iso_week());
 
     let mut stream = weeks
-        .map(|w| lessons_by_week(&client, &schedule_credentials, &timetable, w))
+        .map(|w| lessons_by_week(&client, &timetable, w))
         .buffer_unordered(5);
 
     while let Some(response) = stream.next().await {
@@ -141,20 +133,6 @@ async fn lessons_ical(
         .body(calendar.to_string()))
 }
 
-async fn credentials(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
-    let session = decrypt::<Session>(bearer.token(), key)?;
-    let credentials = get_schedule_credentials(&session.into_client()?).await?;
-
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![
-            CacheDirective::Private,
-            CacheDirective::MaxAge(300),
-        ]))
-        .insert_header((header::VARY, header::AUTHORIZATION.as_str()))
-        .json(credentials))
-}
-
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/timetables")
@@ -162,6 +140,5 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(web::resource("/{id}").route(web::get().to(timetable)))
             .service(web::resource("/{id}/lessons").route(web::get().to(lessons)))
             .service(web::resource("/{id}/lessons.ics").route(web::get().to(lessons_ical))),
-    )
-    .service(web::resource("/credentials").route(web::get().to(credentials)));
+    );
 }

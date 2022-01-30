@@ -1,7 +1,7 @@
 import { DateTime } from "luxon";
 import useSWR, { SWRResponse } from "swr";
 import { API_ENDPOINT } from "./api";
-import { SessionCredentials, useAuth, useSessionCredentials } from "./auth";
+import { useAuth } from "./auth";
 
 export interface Timetable {
   school_guid: string;
@@ -15,11 +15,10 @@ export interface Timetable {
 
 export function useTimetables(): SWRResponse<Timetable[]> {
   const { sessionToken } = useAuth();
-  const { data: credentials } = useSessionCredentials();
 
   return useSWR(
-    sessionToken && credentials
-      ? `/schedule/timetables?scope=${credentials.scope}`
+    sessionToken
+      ? "/schedule/timetables"
       : null,
     async (path) => {
       return fetch(`${API_ENDPOINT}${path}`, {
@@ -49,17 +48,15 @@ interface FetchLessons {
 
 const fetchLessonsUrl = (
   { timetable, year, week }: FetchLessons,
-  credentials: SessionCredentials
 ) =>
-  `${API_ENDPOINT}/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}&scope=${credentials.scope}`;
+  `${API_ENDPOINT}/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}`;
 
 export async function fetchLessons(
   { timetable, year, week }: FetchLessons,
-  credentials: SessionCredentials,
   sessionToken: string
 ): Promise<Lesson[]> {
   const res = await fetch(
-    fetchLessonsUrl({ timetable, year, week }, credentials),
+    fetchLessonsUrl({ timetable, year, week }),
     {
       headers: {
         Authorization: `Bearer ${sessionToken}`,
@@ -76,16 +73,14 @@ export function useLessons({
   week,
 }: Partial<FetchLessons>): SWRResponse<Lesson[]> {
   const { sessionToken } = useAuth();
-  const { data: credentials } = useSessionCredentials();
 
   return useSWR(
-    timetable && sessionToken && year && week && credentials
-      ? fetchLessonsUrl({ timetable, year, week }, credentials)
+    timetable && sessionToken && year && week
+      ? fetchLessonsUrl({ timetable, year, week })
       : null,
     () =>
       fetchLessons(
         { timetable: timetable!, year: year!, week: week! },
-        credentials!,
         sessionToken!
       )
   );

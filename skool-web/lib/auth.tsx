@@ -53,7 +53,7 @@ export interface AuthData {
   loggedOut: boolean;
   sessionToken?: string;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthData>({
@@ -61,7 +61,7 @@ const AuthContext = createContext<AuthData>({
   loading: false,
   loggedOut: true,
   login: async () => {},
-  logout: async () => {},
+  logout: () => {},
 });
 
 const LOGIN_TOKEN_KEY = "login_token";
@@ -104,8 +104,10 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
       .finally(() => setLoading(false));
   };
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
+    setLoginToken(undefined);
     localStorage.removeItem(LOGIN_TOKEN_KEY);
+    setSessionToken(undefined);
     sessionStorage.removeItem(SESSION_TOKEN_KEY);
     setLoggedOut(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,24 +130,3 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
-
-export interface SessionCredentials {
-  scope: string;
-}
-
-export const useSessionCredentials = (): SWRResponse<SessionCredentials> => {
-  const { sessionToken } = useAuth();
-
-  return useSWR(
-    sessionToken ? `${API_ENDPOINT}/schedule/credentials` : null,
-    async (url) => {
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      });
-
-      return res.json();
-    }
-  );
-};

@@ -15,7 +15,7 @@ export const Login: FunctionComponent = () => {
     >
       {({ status }) => (
         <Form>
-          <label htmlFor="username">Email</label>
+          <label htmlFor="username">Username</label>
           <Field id="username" name="username" placeholder="ab12345" />
           <ErrorMessage name="username" />
 

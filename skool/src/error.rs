@@ -1,5 +1,5 @@
 use actix_web::{http::StatusCode, ResponseError};
-use skolplattformen::{auth::AuthError, schedule::GetScopeError};
+use skolplattformen::schedule::AuthError;
 use skool_crypto::crypto::CryptoError;
 use thiserror::Error;
 use tracing::error;
@@ -35,8 +35,8 @@ impl From<AuthError> for AppError {
         match e {
             AuthError::BadCredentials => Self::BadRequest("bad credentials".to_owned()),
             AuthError::ReqwestError(_) => e.into(),
-            AuthError::ScrapingFailed => {
-                error!("scraping failed");
+            AuthError::ScrapingFailed { .. } => {
+                error!("{:?}", e);
                 Self::InternalError
             }
         }
@@ -59,15 +59,6 @@ impl From<reqwest::Error> for AppError {
     fn from(e: reqwest::Error) -> Self {
         error!("http request failed: {}", e);
         Self::InternalError
-    }
-}
-
-impl From<GetScopeError> for AppError {
-    fn from(e: GetScopeError) -> Self {
-        match e {
-            GetScopeError::ReqwestError(e) => e.into(),
-            GetScopeError::ScrapingFailed => AppError::InternalError,
-        }
     }
 }
 
