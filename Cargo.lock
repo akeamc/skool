@@ -1953,7 +1953,7 @@ checksum = "533494a8f9b724d33625ab53c6c4800f7cc445895924a8ef649222dcb76e938b"
 
 [[package]]
 name = "skolplattformen"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "agenda",
  "chrono",
@@ -1974,7 +1974,7 @@ dependencies = [
 
 [[package]]
 name = "skool"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "actix-cors",
  "actix-web",
