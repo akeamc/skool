@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, ResponseError};
 use skolplattformen::schedule::AuthError;
-use skool_crypto::crypto::CryptoError;
+use skool_webtoken::crypto::CryptoError;
 use thiserror::Error;
 use tracing::error;
 

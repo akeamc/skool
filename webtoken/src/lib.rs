@@ -1,19 +1,19 @@
 use actix_web::{dev::ServiceRequest, web::Data, HttpRequest};
-use crypto::Key;
+use crypto::AesKey;
 
 use structopt::StructOpt;
 
 pub mod crypto;
 
-pub fn crypto_config(req: &impl UsableRequest) -> &CryptoConfig {
-    req.app_data::<Data<CryptoConfig>>()
-        .expect("CryptoConfig not found")
+pub fn crypto_config(req: &impl UsableRequest) -> &WebtokenConfig {
+    req.app_data::<Data<WebtokenConfig>>()
+        .expect("webtoken config not found")
 }
 
 #[derive(Debug, Clone, StructOpt)]
-pub struct CryptoConfig {
-    #[structopt(name = "crypto-key", env = "CRYPTO_KEY", hide_env_values = true)]
-    pub key: Key,
+pub struct WebtokenConfig {
+    #[structopt(name = "webtoken-key", env = "WEBTOKEN_KEY", hide_env_values = true)]
+    pub key: AesKey,
 }
 
 pub trait UsableRequest {

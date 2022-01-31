@@ -14,7 +14,7 @@ use skolplattformen::{
     schedule::{start_session, Session},
 };
 use skool_agenda::build_calendar;
-use skool_crypto::{crypto::decrypt, crypto_config, CryptoConfig};
+use skool_webtoken::{crypto::decrypt, crypto_config, WebtokenConfig};
 use tracing::{debug, instrument};
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
 use super::auth::LoginInfo;
 
 async fn timetables(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let timetables = list_timetables(&session.try_into_client()?).await?;
@@ -42,7 +42,7 @@ async fn timetable(
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let timetable = get_timetable(&session.try_into_client()?, &id)
@@ -75,7 +75,7 @@ async fn lessons(
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let client = session.try_into_client()?;

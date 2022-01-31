@@ -4,7 +4,7 @@ use actix_web::{web, App, HttpServer};
 use dotenv::dotenv;
 
 use skool::{logging::SkoolRootSpanBuilder, routes, WebhookConfig};
-use skool_crypto::CryptoConfig;
+use skool_webtoken::WebtokenConfig;
 use structopt::StructOpt;
 
 use tracing_actix_web::TracingLogger;
@@ -12,7 +12,7 @@ use tracing_actix_web::TracingLogger;
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(flatten)]
-    crypto: CryptoConfig,
+    crypto: WebtokenConfig,
 
     #[structopt(flatten)]
     webhook: WebhookConfig,

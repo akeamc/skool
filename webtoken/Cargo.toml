@@ -1,5 +1,5 @@
 [package]
-name = "skool-crypto"
+name = "skool-webtoken"
 version = "0.1.0"
 edition = "2021"
 

@@ -1976,7 +1976,7 @@ dependencies = [
  "serde",
  "skolplattformen",
  "skool-agenda",
- "skool-crypto",
+ "skool-webtoken",
  "structopt",
  "thiserror",
  "tracing",
@@ -1997,7 +1997,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "skool-crypto"
+name = "skool-webtoken"
 version = "0.1.0"
 dependencies = [
  "actix-web",
