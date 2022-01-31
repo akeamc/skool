@@ -16,18 +16,13 @@ export interface Timetable {
 export function useTimetables(): SWRResponse<Timetable[]> {
   const { sessionToken } = useAuth();
 
-  return useSWR(
-    sessionToken
-      ? "/schedule/timetables"
-      : null,
-    async (path) => {
-      return fetch(`${API_ENDPOINT}${path}`, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      }).then((res) => res.json());
-    }
-  );
+  return useSWR(sessionToken ? "/schedule/timetables" : null, async (path) => {
+    return fetch(`${API_ENDPOINT}${path}`, {
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+      },
+    }).then((res) => res.json());
+  });
 }
 
 export interface Lesson {
@@ -46,25 +41,24 @@ interface FetchLessons {
   week: number;
 }
 
-const fetchLessonsUrl = (
-  { timetable, year, week }: FetchLessons,
-) =>
+const fetchLessonsUrl = ({ timetable, year, week }: FetchLessons) =>
   `${API_ENDPOINT}/schedule/timetables/${timetable}/lessons?year=${year}&week=${week}`;
 
 export async function fetchLessons(
   { timetable, year, week }: FetchLessons,
   sessionToken: string
 ): Promise<Lesson[]> {
-  const res = await fetch(
-    fetchLessonsUrl({ timetable, year, week }),
-    {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-      },
-    }
-  );
+  const res = await fetch(fetchLessonsUrl({ timetable, year, week }), {
+    headers: {
+      Authorization: `Bearer ${sessionToken}`,
+    },
+  });
 
-  return res.json();
+  const lessons: Lesson[] = await res.json();
+
+  return lessons.sort(
+    (a, b) => +DateTime.fromISO(a.start) - +DateTime.fromISO(b.start)
+  );
 }
 
 export function useLessons({

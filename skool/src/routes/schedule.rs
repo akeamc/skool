@@ -30,7 +30,10 @@ async fn timetables(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpRespo
 
     let timetables = list_timetables(&session.try_into_client()?).await?;
     Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(600),
+        ]))
         .json(timetables))
 }
 
@@ -46,7 +49,10 @@ async fn timetable(
         .await?
         .ok_or(AppError::TimetableNotFound)?;
     Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(600),
+        ]))
         .json(timetable))
 }
 

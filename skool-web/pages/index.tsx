@@ -20,9 +20,11 @@ const Home: NextPage = () => {
         </button>
       )}
       <section>
-        {timetables?.map(({ timetable_id, first_name }) => (
+        {timetables?.map(({ timetable_id, first_name, last_name }) => (
           <div key={timetable_id}>
-            <h2>{first_name}</h2>
+            <h2>
+              Var hälsad, {first_name} {last_name}
+            </h2>
             <Timetable id={timetable_id} />
           </div>
         ))}
