@@ -5,7 +5,6 @@ use actix_web::{
     web, HttpRequest, HttpResponse,
 };
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use agenda::build_calendar;
 use chrono::{Datelike, Duration, IsoWeek, NaiveDate, Utc, Weekday};
 use futures::{stream, StreamExt};
 use mime::Mime;
@@ -14,6 +13,7 @@ use skolplattformen::{
     schedule::{get_timetable, lessons_by_week, list_timetables},
     schedule::{start_session, Session},
 };
+use skool_agenda::build_calendar;
 use skool_crypto::{crypto::decrypt, crypto_config, CryptoConfig};
 use tracing::{debug, instrument};
 

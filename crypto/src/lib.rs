@@ -1,12 +1,9 @@
-use actix_web::{dev::ServiceRequest, web::Data};
+use actix_web::{dev::ServiceRequest, web::Data, HttpRequest};
 use crypto::Key;
 
 use structopt::StructOpt;
 
 pub mod crypto;
-
-pub use actix_web::{dev::Payload, web, FromRequest, HttpRequest};
-pub use futures::future;
 
 pub fn crypto_config(req: &impl UsableRequest) -> &CryptoConfig {
     req.app_data::<Data<CryptoConfig>>()

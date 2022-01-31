@@ -1,9 +1,9 @@
 *
 !/agenda
 !/cookie_store
+!/crypto
 !/scrape
 !/skolplattformen
 !/skool
-!/skool-crypto
 !Cargo.toml
 !Cargo.lock

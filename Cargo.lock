@@ -255,17 +255,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "agenda"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "csscolorparser",
- "icalendar",
- "serde",
- "uuid",
-]
-
-[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1955,7 +1944,6 @@ checksum = "533494a8f9b724d33625ab53c6c4800f7cc445895924a8ef649222dcb76e938b"
 name = "skolplattformen"
 version = "0.1.1"
 dependencies = [
- "agenda",
  "chrono",
  "chrono-tz",
  "cookie_store",
@@ -1966,6 +1954,7 @@ dependencies = [
  "select",
  "serde",
  "serde_json",
+ "skool-agenda",
  "thiserror",
  "tokio-test",
  "tracing",
@@ -1979,7 +1968,6 @@ dependencies = [
  "actix-cors",
  "actix-web",
  "actix-web-httpauth",
- "agenda",
  "chrono",
  "dotenv",
  "futures",
@@ -1987,12 +1975,24 @@ dependencies = [
  "reqwest",
  "serde",
  "skolplattformen",
+ "skool-agenda",
  "skool-crypto",
  "structopt",
  "thiserror",
  "tracing",
  "tracing-actix-web",
  "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "skool-agenda"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "csscolorparser",
+ "icalendar",
+ "serde",
  "uuid",
 ]
 
@@ -2004,7 +2004,6 @@ dependencies = [
  "actix-web-httpauth",
  "aes-gcm-siv",
  "base64",
- "futures",
  "hex",
  "rand 0.8.4",
  "rmp-serde",
