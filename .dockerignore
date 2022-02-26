@@ -4,6 +4,6 @@
 !/scrape
 !/skolplattformen
 !/skool
-!/skool-crypto
+!/webtoken
 !Cargo.toml
 !Cargo.lock

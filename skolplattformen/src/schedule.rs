@@ -101,7 +101,7 @@ pub async fn list_timetables(client: &AuthorizedClient) -> Result<Vec<Timetable>
     Ok(student_timetables.unwrap_or_default())
 }
 
-/// Get a [Timetable] by id.
+/// Get a [`Timetable`] by id.
 #[instrument(skip(client))]
 pub async fn get_timetable(
     client: &AuthorizedClient,
@@ -167,7 +167,7 @@ impl Lesson {
         self,
         date: NaiveDate,
         color: Option<Color>,
-    ) -> Option<agenda::Lesson> {
+    ) -> Option<skool_agenda::Lesson> {
         let start = NaiveTime::parse_from_str(&self.time_start, Lesson::TIME_FMT).ok()?;
         let end = NaiveTime::parse_from_str(&self.time_end, Lesson::TIME_FMT).ok()?;
 
@@ -177,7 +177,7 @@ impl Lesson {
         let location = texts.next_back().filter(|s| !s.is_empty());
         let teacher = texts.next().filter(|s| !s.is_empty());
 
-        Some(agenda::Lesson {
+        Some(skool_agenda::Lesson {
             start: Lesson::TZ
                 .from_local_datetime(&date.and_time(start))
                 .single()?
@@ -214,13 +214,13 @@ struct Box {
     lesson_guids: Option<Vec<String>>,
 }
 
-/// List lessons in a [Timetable] for a specific [IsoWeek].
+/// List lessons in a [`Timetable`] for a specific [`IsoWeek`].
 #[instrument(skip(client, timetable))]
 pub async fn lessons_by_week(
     client: &AuthorizedClient,
     timetable: &Timetable,
     week: IsoWeek,
-) -> Result<Vec<agenda::Lesson>, reqwest::Error> {
+) -> Result<Vec<skool_agenda::Lesson>, reqwest::Error> {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
@@ -303,7 +303,7 @@ pub enum AuthError {
 }
 
 #[derive(Debug)]
-/// A wrapper around [Client] that prevents unauthorized [Client]s
+/// A wrapper around [`Client`] that prevents unauthorized [`Client`]s
 /// from accidentaly being passed to Skolplattformen functions.
 pub struct AuthorizedClient(Client);
 

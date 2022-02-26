@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 use std::borrow::Cow;
 
 use chrono::{DateTime, Duration, Utc};

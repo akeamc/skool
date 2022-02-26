@@ -14,8 +14,8 @@ import styles from "./timetable.module.scss";
 import { useContainerQuery } from "react-container-query";
 import { Query } from "react-container-query/lib/interfaces";
 import { useTime } from "../../lib/time";
-import { API_ENDPOINT } from "../../lib/api";
 import { googleAuthUrl, GOOGLE_CALENDAR_SCOPES } from "../../lib/google/oauth";
+import chroma from "chroma-js";
 
 const cx = classNames.bind(styles);
 
@@ -81,6 +81,7 @@ const FloatingLesson: FunctionComponent<{ lesson: OptimizedLesson }> = ({
       style={{
         ["--start-secs" as any]: lesson.startSecs,
         ["--duration-secs" as any]: lesson.durationSecs,
+        ["--level" as any]: lesson.level,
       }}
     >
       <div className={cx("content")}>
@@ -102,6 +103,7 @@ interface OptimizedLesson extends Omit<Lesson, "start" | "end"> {
   durationSecs: number;
   start: DateTime;
   end: DateTime;
+  level: number;
 }
 
 const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
@@ -112,16 +114,27 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
   const lessons: OptimizedLesson[] =
     (day
       ? data?.reduce((acc, l) => {
+          console.log("reducing");
           const start = DateTime.fromISO(l.start).setZone(day.zone);
           const end = DateTime.fromISO(l.end).setZone(day.zone);
 
           if (start.hasSame(day, "day")) {
+            let conflicts = 0;
+
+            for (const l2 of acc) {
+              // no need to check start since the array is already sorted by start time
+              if (+l2.end > +start) {
+                conflicts++;
+              }
+            }
+
             acc.push({
               ...l,
               startSecs: start.hour * 3600 + start.minute * 60 + start.second,
               durationSecs: end.diff(start).as("seconds"),
               start,
               end,
+              level: conflicts + 1,
             });
           }
 
@@ -178,7 +191,7 @@ export const Timetable: FunctionComponent<Props> = ({ id }) => {
       <Controls />
       <div className={styles.table} style={{ ["--days" as any]: days.length }}>
         <header>
-          <div />
+          <div /> {/* empty cell */}
           {days.map((d) => (
             <div key={d?.toISODate()}>
               {d?.toLocaleString({ weekday: "long" })}{" "}

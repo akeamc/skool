@@ -1,36 +1,31 @@
-use std::str::FromStr;
-
 use actix_web::{
-    http::header::{self, CacheControl, CacheDirective},
+    http::header::{CacheControl, CacheDirective},
     web, HttpRequest, HttpResponse,
 };
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use agenda::build_calendar;
-use chrono::{Datelike, Duration, IsoWeek, NaiveDate, Utc, Weekday};
-use futures::{stream, StreamExt};
-use mime::Mime;
+use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
+
 use serde::Deserialize;
 use skolplattformen::{
+    schedule::Session,
     schedule::{get_timetable, lessons_by_week, list_timetables},
-    schedule::{start_session, Session},
-};
-use skool_crypto::{crypto::decrypt, crypto_config, CryptoConfig};
-use tracing::{debug, instrument};
-
-use crate::{
-    error::{AppError, AppResult},
-    WebhookConfig,
 };
 
-use super::auth::LoginInfo;
+use skool_webtoken::{crypto::decrypt, crypto_config, WebtokenConfig};
+use tracing::instrument;
+
+use crate::error::{AppError, AppResult};
 
 async fn timetables(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let timetables = list_timetables(&session.try_into_client()?).await?;
     Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(600),
+        ]))
         .json(timetables))
 }
 
@@ -39,14 +34,17 @@ async fn timetable(
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let timetable = get_timetable(&session.try_into_client()?, &id)
         .await?
         .ok_or(AppError::TimetableNotFound)?;
     Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::Private]))
+        .insert_header(CacheControl(vec![
+            CacheDirective::Private,
+            CacheDirective::MaxAge(600),
+        ]))
         .json(timetable))
 }
 
@@ -69,7 +67,7 @@ async fn lessons(
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let CryptoConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = crypto_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let client = session.try_into_client()?;
@@ -88,57 +86,51 @@ async fn lessons(
         .json(lessons))
 }
 
-#[derive(Debug, Deserialize)]
-struct IcalQuery {
-    webhook_token: String,
-}
+// async fn lessons_ical(
+//     id: web::Path<String>,
+//     query: web::Query<IcalQuery>,
+//     conf: web::Data<WebhookConfig>,
+// ) -> AppResult<HttpResponse> {
+//     let info = decrypt::<LoginInfo>(&query.webhook_token, &conf.key)?;
+//     let client = start_session(&info.username, &info.password)
+//         .await?
+//         .try_into_client()?;
+//     let timetable = get_timetable(&client, &id)
+//         .await?
+//         .ok_or(AppError::TimetableNotFound)?;
+//     let now = Utc::now();
 
-async fn lessons_ical(
-    id: web::Path<String>,
-    query: web::Query<IcalQuery>,
-    conf: web::Data<WebhookConfig>,
-) -> AppResult<HttpResponse> {
-    let info = decrypt::<LoginInfo>(&query.webhook_token, &conf.key)?;
-    let client = start_session(&info.username, &info.password)
-        .await?
-        .try_into_client()?;
-    let timetable = get_timetable(&client, &id)
-        .await?
-        .ok_or(AppError::TimetableNotFound)?;
-    let now = Utc::now();
+//     let mut lessons = vec![];
 
-    let mut lessons = vec![];
+//     let weeks = stream::iter(0..25).map(|i| (now + Duration::weeks(i)).iso_week());
 
-    let weeks = stream::iter(0..25).map(|i| (now + Duration::weeks(i)).iso_week());
+//     let mut stream = weeks
+//         .map(|w| lessons_by_week(&client, &timetable, w))
+//         .buffer_unordered(5);
 
-    let mut stream = weeks
-        .map(|w| lessons_by_week(&client, &timetable, w))
-        .buffer_unordered(5);
+//     while let Some(response) = stream.next().await {
+//         let mut vec = response?;
 
-    while let Some(response) = stream.next().await {
-        let mut vec = response?;
+//         lessons.append(&mut vec);
+//     }
 
-        lessons.append(&mut vec);
-    }
+//     debug!("found {} lessons", lessons.len());
 
-    debug!("found {} lessons", lessons.len());
+//     let calendar = build_calendar(lessons.into_iter());
 
-    let calendar = build_calendar(lessons.into_iter());
-
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::Private]))
-        .insert_header(header::ContentType(
-            Mime::from_str("text/calendar").unwrap(),
-        ))
-        .body(calendar.to_string()))
-}
+//     Ok(HttpResponse::Ok()
+//         .insert_header(CacheControl(vec![CacheDirective::Private]))
+//         .insert_header(header::ContentType(
+//             Mime::from_str("text/calendar").unwrap(),
+//         ))
+//         .body(calendar.to_string()))
+// }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/timetables")
             .service(web::resource("").route(web::get().to(timetables)))
             .service(web::resource("/{id}").route(web::get().to(timetable)))
-            .service(web::resource("/{id}/lessons").route(web::get().to(lessons)))
-            .service(web::resource("/{id}/lessons.ics").route(web::get().to(lessons_ical))),
+            .service(web::resource("/{id}/lessons").route(web::get().to(lessons))), // .service(web::resource("/{id}/lessons.ics").route(web::get().to(lessons_ical))),
     );
 }

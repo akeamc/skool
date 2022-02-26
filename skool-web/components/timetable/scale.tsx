@@ -14,7 +14,7 @@ const ScaleLabel: FunctionComponent<{ hour: number }> = ({ hour }) => (
 
 const UncachedScale: FunctionComponent = () => {
   return (
-    <div className={styles.scale}>
+    <div>
       {Array.from({ length: 24 }).map((_, i) => (
         <ScaleLabel hour={i} key={i} />
       ))}

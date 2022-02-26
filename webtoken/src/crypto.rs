@@ -36,13 +36,13 @@ impl From<aes_gcm_siv::aead::Error> for CryptoError {
 const NONCE_LEN: usize = 12;
 
 #[derive(Clone, Copy, Debug)]
-pub struct Key([u8; Self::LEN]);
+pub struct AesKey([u8; Self::LEN]);
 
-impl Key {
+impl AesKey {
     pub const LEN: usize = 32;
 }
 
-fn encrypt_bytes(val: &impl Serialize, key: &Key) -> Result<Vec<u8>, CryptoError> {
+fn encrypt_bytes(val: &impl Serialize, key: &AesKey) -> Result<Vec<u8>, CryptoError> {
     let plaintext = rmp_serde::to_vec(val)?;
     let mut nonce = [0_u8; NONCE_LEN];
     rand::thread_rng().fill(&mut nonce);
@@ -54,7 +54,7 @@ fn encrypt_bytes(val: &impl Serialize, key: &Key) -> Result<Vec<u8>, CryptoError
     Ok(out)
 }
 
-fn decrypt_bytes<T>(bytes: &[u8], key: &Key) -> Result<T, CryptoError>
+fn decrypt_bytes<T>(bytes: &[u8], key: &AesKey) -> Result<T, CryptoError>
 where
     T: DeserializeOwned,
 {
@@ -70,11 +70,11 @@ where
     rmp_serde::from_read_ref(&plaintext).map_err(|e| e.into())
 }
 
-pub fn encrypt(val: &impl Serialize, key: &Key) -> Result<String, CryptoError> {
+pub fn encrypt(val: &impl Serialize, key: &AesKey) -> Result<String, CryptoError> {
     encrypt_bytes(val, key).map(|v| base64::encode_config(&v, URL_SAFE_NO_PAD))
 }
 
-pub fn decrypt<T>(val: &str, key: &Key) -> Result<T, CryptoError>
+pub fn decrypt<T>(val: &str, key: &AesKey) -> Result<T, CryptoError>
 where
     T: DeserializeOwned,
 {
@@ -82,14 +82,14 @@ where
     decrypt_bytes(&ciphertext, key)
 }
 
-impl FromStr for Key {
+impl FromStr for AesKey {
     type Err = FromHexError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut data = [0_u8; Key::LEN];
+        let mut data = [0_u8; AesKey::LEN];
 
         hex::decode_to_slice(s, &mut data)?;
 
-        Ok(Key(data))
+        Ok(AesKey(data))
     }
 }
