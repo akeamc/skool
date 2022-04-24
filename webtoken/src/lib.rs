@@ -5,7 +5,7 @@ use structopt::StructOpt;
 
 pub mod crypto;
 
-pub fn crypto_config(req: &impl UsableRequest) -> &WebtokenConfig {
+pub fn webtoken_config(req: &impl UsableRequest) -> &WebtokenConfig {
     req.app_data::<Data<WebtokenConfig>>()
         .expect("webtoken config not found")
 }

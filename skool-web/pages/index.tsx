@@ -1,8 +1,6 @@
 import type { NextPage } from "next";
-import { useAuth } from "../lib/auth";
-import { useLessons, useTimetables } from "../lib/schedule";
-import { FunctionComponent } from "react";
-import { Login } from "../components/login";
+import { useAuth, withAuth } from "../lib/auth";
+import { useTimetables } from "../lib/schedule";
 import { Timetable } from "../components/timetable/timetable";
 
 const Home: NextPage = () => {
@@ -12,13 +10,6 @@ const Home: NextPage = () => {
   return (
     <div>
       <h1>Skålplattformen 🥂</h1>
-      <pre>{JSON.stringify(auth, null, 2)}</pre>
-      {!auth.authenticated && <Login />}
-      {auth.authenticated && (
-        <button onClick={logout} type="button">
-          Log out
-        </button>
-      )}
       <section>
         {timetables?.map(({ timetable_id, first_name, last_name }) => (
           <div key={timetable_id}>
@@ -33,4 +24,4 @@ const Home: NextPage = () => {
   );
 };
 
-export default Home;
+export default withAuth(Home);

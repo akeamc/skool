@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use skolplattformen::schedule::start_session;
 use skool_webtoken::{
     crypto::{decrypt, encrypt},
-    crypto_config, WebtokenConfig,
+    webtoken_config, WebtokenConfig,
 };
 
 use crate::error::AppResult;
@@ -34,7 +34,7 @@ async fn create_session(
     web::Json(info): web::Json<CreateSessionInfo>,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let WebtokenConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = webtoken_config(&req);
 
     let (login_info, generate_token) = match info {
         CreateSessionInfo::UsernamePassword(info) => (info, true),

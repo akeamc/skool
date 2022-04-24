@@ -1,3 +1,3 @@
 pub mod error;
-pub mod logging;
+pub mod log;
 pub mod routes;

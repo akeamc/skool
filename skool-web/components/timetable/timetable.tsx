@@ -114,7 +114,6 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
   const lessons: OptimizedLesson[] =
     (day
       ? data?.reduce((acc, l) => {
-          console.log("reducing");
           const start = DateTime.fromISO(l.start).setZone(day.zone);
           const end = DateTime.fromISO(l.end).setZone(day.zone);
 

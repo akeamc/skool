@@ -1,9 +1,19 @@
-import { FunctionComponent } from "react";
 import { ErrorMessage, Field, Form, Formik } from "formik";
 import { useAuth } from "../lib/auth";
+import { NextPage } from "next";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
-export const Login: FunctionComponent = () => {
-  const { login } = useAuth();
+const LoginPage: NextPage = () => {
+  const { login, authenticated } = useAuth();
+  const router = useRouter();
+  const redirect = router.query.redirect?.toString() || "/"; // callback url
+
+  useEffect(() => {
+    if (authenticated) {
+      router.push(redirect);
+    }
+  }, [authenticated, redirect, router]);
 
   return (
     <Formik
@@ -23,7 +33,7 @@ export const Login: FunctionComponent = () => {
           <Field id="password" name="password" type="password" />
           <ErrorMessage name="password" />
 
-          <button type="submit">Submit</button>
+          <button type="submit">Logga in</button>
 
           <div>{status}</div>
         </Form>
@@ -31,3 +41,5 @@ export const Login: FunctionComponent = () => {
     </Formik>
   );
 };
+
+export default LoginPage;

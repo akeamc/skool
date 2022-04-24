@@ -11,13 +11,13 @@ use skolplattformen::{
     schedule::{get_timetable, lessons_by_week, list_timetables},
 };
 
-use skool_webtoken::{crypto::decrypt, crypto_config, WebtokenConfig};
+use skool_webtoken::{crypto::decrypt, webtoken_config, WebtokenConfig};
 use tracing::instrument;
 
 use crate::error::{AppError, AppResult};
 
 async fn timetables(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpResponse> {
-    let WebtokenConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = webtoken_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let timetables = list_timetables(&session.try_into_client()?).await?;
@@ -34,7 +34,7 @@ async fn timetable(
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let WebtokenConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = webtoken_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let timetable = get_timetable(&session.try_into_client()?, &id)
@@ -67,7 +67,7 @@ async fn lessons(
     bearer: BearerAuth,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let WebtokenConfig { key, .. } = crypto_config(&req);
+    let WebtokenConfig { key, .. } = webtoken_config(&req);
     let session = decrypt::<Session>(bearer.token(), key)?;
 
     let client = session.try_into_client()?;

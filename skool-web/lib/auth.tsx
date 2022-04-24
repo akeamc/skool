@@ -1,4 +1,7 @@
+import { useRouter } from "next/router";
 import {
+  Component,
+  ComponentType,
   createContext,
   FunctionComponent,
   useCallback,
@@ -10,19 +13,16 @@ import useSWR, { SWRResponse } from "swr";
 import createPersistedState from "use-persisted-state";
 import { API_ENDPOINT, Either } from "./api";
 
-interface SessionFromUsernamePassword {
+interface UsernamePasswordPayload {
   username: string;
   password: string;
 }
 
-interface SessionFromLoginToken {
+interface LoginTokenPayload {
   login_token: string;
 }
 
-type CreateSessionRequest = Either<
-  SessionFromUsernamePassword,
-  SessionFromLoginToken
->;
+type CreateSessionRequest = Either<UsernamePasswordPayload, LoginTokenPayload>;
 
 interface CreateSessionResponse {
   session_token: string;
@@ -49,7 +49,7 @@ async function createSession(
 
 export interface AuthData {
   authenticated: boolean;
-  loading: boolean;
+  loggingIn: boolean;
   loggedOut: boolean;
   sessionToken?: string;
   login: (username: string, password: string) => Promise<void>;
@@ -58,7 +58,7 @@ export interface AuthData {
 
 const AuthContext = createContext<AuthData>({
   authenticated: false,
-  loading: false,
+  loggingIn: false,
   loggedOut: true,
   login: async () => {},
   logout: () => {},
@@ -75,7 +75,7 @@ const useSessionTokenState = createPersistedState(
 
 export const AuthProvider: FunctionComponent = ({ children }) => {
   const [loggedOut, setLoggedOut] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
   const [loginToken, setLoginToken] = useLoginTokenState<string>();
   const [sessionToken, setSessionToken] = useSessionTokenState<string>();
 
@@ -91,17 +91,22 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
   }, []);
 
   const login = async (username: string, password: string) => {
-    setLoading(true);
+    setLoggingIn(true);
 
-    await createSession({ username, password })
-      .then(({ login_token, session_token }) => {
-        setSessionToken(session_token);
+    try {
+      const { login_token, session_token } = await createSession({
+        username,
+        password,
+      });
 
-        if (typeof login_token === "string") {
-          setLoginToken(login_token);
-        }
-      })
-      .finally(() => setLoading(false));
+      setSessionToken(session_token);
+
+      if (typeof login_token === "string") {
+        setLoginToken(login_token);
+      }
+    } finally {
+      setLoggingIn(false);
+    }
   };
 
   const logout = useCallback(() => {
@@ -117,7 +122,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
     <AuthContext.Provider
       value={{
         authenticated: !!sessionToken,
-        loading,
+        loggingIn: loggingIn,
         loggedOut,
         sessionToken,
         login,
@@ -130,3 +135,25 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
+export function withAuth<P extends object>(Component: ComponentType<P>): FunctionComponent<P> {
+  // eslint-disable-next-line react/display-name
+  return (props) => {
+    const auth = useAuth();
+    const router = useRouter();
+
+    const redirect = !auth.authenticated;
+
+    useEffect(() => {
+      if (redirect) {
+        router.push("/login", {query: {redirect: router.asPath}});
+      }
+    }, [redirect, router]);
+
+    if (redirect) {
+      return <>omdirigerar...</>;
+    } else {
+      return <Component {...props} />;
+    }
+  }
+}

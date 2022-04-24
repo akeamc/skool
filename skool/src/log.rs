@@ -10,6 +10,12 @@ pub struct SkoolRootSpanBuilder {}
 #[derive(Clone, Copy, Debug)]
 struct RequestId(Uuid);
 
+impl Default for RequestId {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
+
 impl RequestId {
     pub fn generate() -> Self {
         Self(Uuid::new_v4())
@@ -35,8 +41,7 @@ impl RootSpanBuilder for SkoolRootSpanBuilder {
         let user_agent = request
             .headers()
             .get(header::USER_AGENT)
-            .map(|h| h.to_str().ok())
-            .flatten()
+            .and_then(|h| h.to_str().ok())
             .unwrap_or("");
 
         let span = span!(
@@ -57,8 +62,7 @@ impl RootSpanBuilder for SkoolRootSpanBuilder {
         if let Some(trace_id) = request
             .headers()
             .get("ot-tracer-traceid")
-            .map(|v| v.to_str().ok())
-            .flatten()
+            .and_then(|v| v.to_str().ok())
         {
             span.record("trace_id", &trace_id);
         }

@@ -3,7 +3,7 @@ use actix_web::{web, App, HttpServer};
 
 use dotenv::dotenv;
 
-use skool::{logging::SkoolRootSpanBuilder, routes};
+use skool::{log::SkoolRootSpanBuilder, routes};
 use skool_webtoken::WebtokenConfig;
 use structopt::StructOpt;
 
