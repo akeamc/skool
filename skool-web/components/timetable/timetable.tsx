@@ -1,5 +1,5 @@
 import classNames from "classnames/bind";
-import { DateTime, Duration } from "luxon";
+import { DateTime } from "luxon";
 import {
   createContext,
   FunctionComponent,
@@ -15,7 +15,6 @@ import { useContainerQuery } from "react-container-query";
 import { Query } from "react-container-query/lib/interfaces";
 import { useTime } from "../../lib/time";
 import { googleAuthUrl, GOOGLE_CALENDAR_SCOPES } from "../../lib/google/oauth";
-import chroma from "chroma-js";
 
 const cx = classNames.bind(styles);
 

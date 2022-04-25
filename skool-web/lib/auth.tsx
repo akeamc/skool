@@ -1,4 +1,4 @@
-import { useRouter } from "next/router";
+import Router, { useRouter } from "next/router";
 import {
   Component,
   ComponentType,
@@ -9,7 +9,6 @@ import {
   useEffect,
   useState,
 } from "react";
-import useSWR, { SWRResponse } from "swr";
 import createPersistedState from "use-persisted-state";
 import { API_ENDPOINT, Either } from "./api";
 
@@ -50,7 +49,6 @@ async function createSession(
 export interface AuthData {
   authenticated: boolean;
   loggingIn: boolean;
-  loggedOut: boolean;
   sessionToken?: string;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -59,7 +57,6 @@ export interface AuthData {
 const AuthContext = createContext<AuthData>({
   authenticated: false,
   loggingIn: false,
-  loggedOut: true,
   login: async () => {},
   logout: () => {},
 });
@@ -74,7 +71,6 @@ const useSessionTokenState = createPersistedState(
 );
 
 export const AuthProvider: FunctionComponent = ({ children }) => {
-  const [loggedOut, setLoggedOut] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginToken, setLoginToken] = useLoginTokenState<string>();
   const [sessionToken, setSessionToken] = useSessionTokenState<string>();
@@ -99,11 +95,11 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
         password,
       });
 
-      setSessionToken(session_token);
-
       if (typeof login_token === "string") {
         setLoginToken(login_token);
       }
+
+      setSessionToken(session_token);
     } finally {
       setLoggingIn(false);
     }
@@ -111,10 +107,9 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 
   const logout = useCallback(() => {
     setLoginToken(undefined);
-    localStorage.removeItem(LOGIN_TOKEN_KEY);
     setSessionToken(undefined);
+    localStorage.removeItem(LOGIN_TOKEN_KEY);
     sessionStorage.removeItem(SESSION_TOKEN_KEY);
-    setLoggedOut(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -123,7 +118,6 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
       value={{
         authenticated: !!sessionToken,
         loggingIn: loggingIn,
-        loggedOut,
         sessionToken,
         login,
         logout,
@@ -136,7 +130,9 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
-export function withAuth<P extends object>(Component: ComponentType<P>): FunctionComponent<P> {
+export function withAuth<P extends object>(
+  Component: ComponentType<P>
+): FunctionComponent<P> {
   // eslint-disable-next-line react/display-name
   return (props) => {
     const auth = useAuth();
@@ -146,7 +142,7 @@ export function withAuth<P extends object>(Component: ComponentType<P>): Functio
 
     useEffect(() => {
       if (redirect) {
-        router.push("/login", {query: {redirect: router.asPath}});
+        router.push(`/login?redirect=${encodeURIComponent(router.asPath)}`);
       }
     }, [redirect, router]);
 
@@ -155,5 +151,5 @@ export function withAuth<P extends object>(Component: ComponentType<P>): Functio
     } else {
       return <Component {...props} />;
     }
-  }
+  };
 }

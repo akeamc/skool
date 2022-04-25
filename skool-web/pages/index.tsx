@@ -1,27 +1,17 @@
 import type { NextPage } from "next";
-import { useAuth, withAuth } from "../lib/auth";
-import { useTimetables } from "../lib/schedule";
-import { Timetable } from "../components/timetable/timetable";
+import Layout from "../components/layout/layout";
 
-const Home: NextPage = () => {
-  const { login, logout, ...auth } = useAuth();
-  const { data: timetables } = useTimetables();
+const Home: NextPage = () => (
+  <Layout>
+    <h1>The cooler Skolplattformen</h1>
+    <img src="/assets/logo.png" />
+    <style jsx>{`
+      h1 {
+        font-size: 96px;
+        letter-spacing: -0.02em;
+      }
+    `}</style>
+  </Layout>
+);
 
-  return (
-    <div>
-      <h1>Skålplattformen 🥂</h1>
-      <section>
-        {timetables?.map(({ timetable_id, first_name, last_name }) => (
-          <div key={timetable_id}>
-            <h2>
-              Var hälsad, {first_name} {last_name}
-            </h2>
-            <Timetable id={timetable_id} />
-          </div>
-        ))}
-      </section>
-    </div>
-  );
-};
-
-export default withAuth(Home);
+export default Home;
