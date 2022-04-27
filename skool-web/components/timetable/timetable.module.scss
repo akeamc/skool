@@ -68,6 +68,7 @@
   z-index: calc(var(--z-top) - var(--start-secs) + var(--indent));
   left: calc(100% - 100% / var(--level));
   right: calc(16px - 16px / var(--level));
+  box-sizing: border-box;
 
   &:hover {
     z-index: var(--z-top);
