@@ -4,6 +4,7 @@ import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Layout from "../components/layout/layout";
+import styles from "./login.module.scss";
 
 const LoginPage: NextPage = () => {
   const { login, authenticated, loggingIn } = useAuth();
@@ -17,7 +18,7 @@ const LoginPage: NextPage = () => {
   }, [authenticated, redirect, router]);
 
   return (
-    <Layout padTop={false}>
+    <Layout navbar={false}>
       <div className="root">
         <div className="card">
           <h1>Logga in</h1>
@@ -33,20 +34,18 @@ const LoginPage: NextPage = () => {
             }}
           >
             {({ status }) => (
-              <Form>
+              <Form className={styles.form}>
                 <label htmlFor="username">Användarnamn</label>
                 <Field id="username" name="username" placeholder="ab12345" />
-                <ErrorMessage name="username" />
 
                 <label htmlFor="password">Lösenord</label>
                 <Field id="password" name="password" type="password" />
-                <ErrorMessage name="password" />
-
-                <button type="submit" disabled={loggingIn}>
-                  Logga in
-                </button>
 
                 <div>{status}</div>
+
+                <button type="submit" disabled={loggingIn}>
+                  {loggingIn ? "Loggar in ..." : "Logga in"}
+                </button>
               </Form>
             )}
           </Formik>
@@ -86,6 +85,29 @@ const LoginPage: NextPage = () => {
           text-align: center;
         }
 
+        button {
+          background-color: var(--brand-primary);
+          color: #fff;
+          border: 0;
+          font-family: var(--font-main);
+          border-radius: 4px;
+          width: 100%;
+          height: 48px;
+          font-size: 14px;
+          line-height: 1;
+          cursor: pointer;
+          transition: all 0.1s;
+        }
+
+        button:hover {
+          background-color: var(--brand-primary-dark);
+        }
+
+        button:disabled {
+          opacity: 0.1;
+          cursor: default;
+        }
+
         @media (min-width: 480px) {
           .root {
             background-color: var(--background-secondary);
@@ -95,7 +117,7 @@ const LoginPage: NextPage = () => {
           .card {
             padding: var(--page-gutter);
             width: 400px;
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.1);
             background-color: var(--background-primary);
           }

@@ -6,7 +6,6 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
 import styles from "./layout.module.scss";
 import classNames from "classnames/bind";
 import { useAuth } from "../../lib/auth";
@@ -51,12 +50,14 @@ const Navbar: FunctionComponent = () => {
   );
 };
 
-const Layout: FunctionComponent<{ padTop?: boolean }> = ({
+const Layout: FunctionComponent<{ padTop?: boolean, navbar?: boolean, }> = ({
   children,
-  padTop = true,
+  navbar = true,
+  padTop = navbar,
 }) => (
   <div className={cx("layout", { padTop })}>
-    <Navbar />
+    {navbar &&
+      <Navbar />}
     <main>{children}</main>
   </div>
 );

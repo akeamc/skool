@@ -13,9 +13,10 @@ body {
   --font-display: "Space Grotesk", var(--font-main);
   --text-primary: #222;
   --text-muted: #666;
-  --brand-primary: #4059ad;
+  --brand-primary: #103fda;
+  --brand-primary-dark: #0f33a9;
   --background-primary: #fff;
-  --background-secondary: #eff2f1;
+  --background-secondary: #eeeff1;
   --content-width: 1440px;
   --page-gutter: 24px;
 }
