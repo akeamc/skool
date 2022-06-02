@@ -25,7 +25,7 @@ export function useTimetables(): SWRResponse<Timetable[]> {
   });
 }
 
-export interface Lesson {
+interface LessonJson {
   teacher: string | null;
   location: string | null;
   start: string;
@@ -33,6 +33,11 @@ export interface Lesson {
   course: string | null;
   id: string;
   color: string | null;
+}
+
+export interface Lesson extends Omit<LessonJson, "start" | "end"> {
+  start: DateTime;
+  end: DateTime;
 }
 
 interface FetchLessons {
@@ -54,10 +59,15 @@ export async function fetchLessons(
     },
   });
 
-  const lessons: Lesson[] = await res.json();
+  const json: LessonJson[] = await res.json();
+  const lessons = json.map((lesson) => ({
+    ...lesson,
+    start: DateTime.fromISO(lesson.start).toLocal(),
+    end: DateTime.fromISO(lesson.end).toLocal(),
+  }));
 
   return lessons.sort(
-    (a, b) => +DateTime.fromISO(a.start) - +DateTime.fromISO(b.start)
+    (a, b) => +a.start - +b.start
   );
 }
 

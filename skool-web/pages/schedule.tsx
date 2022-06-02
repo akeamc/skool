@@ -11,13 +11,8 @@ const Schedule: NextPage = () => {
   return (
     <Layout>
       <section>
-        {timetables?.map(({ timetable_id, first_name, last_name }) => (
-          <div key={timetable_id}>
-            <h2>
-              Var hälsad, {first_name} {last_name}
-            </h2>
-            <Timetable id={timetable_id} />
-          </div>
+        {timetables?.map(({ timetable_id }) => (
+          <Timetable id={timetable_id} key={timetable_id} />
         ))}
       </section>
     </Layout>
