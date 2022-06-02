@@ -52,6 +52,7 @@ export interface AuthData {
   sessionToken?: string;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  renewingSession: boolean;
 }
 
 const AuthContext = createContext<AuthData>({
@@ -59,6 +60,7 @@ const AuthContext = createContext<AuthData>({
   loggingIn: false,
   login: async () => {},
   logout: () => {},
+  renewingSession: false,
 });
 
 const LOGIN_TOKEN_KEY = "login_token";
@@ -74,9 +76,10 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginToken, setLoginToken] = useLoginTokenState<string>();
   const [sessionToken, setSessionToken] = useSessionTokenState<string>();
+  const renewingSession = !!loginToken && !sessionToken;
 
   useEffect(() => {
-    if (loginToken && !sessionToken) {
+    if (renewingSession) {
       createSession({ login_token: loginToken })
         .then(({ session_token }) => setSessionToken(session_token))
         .catch(() => {
@@ -121,6 +124,7 @@ export const AuthProvider: FunctionComponent = ({ children }) => {
         sessionToken,
         login,
         logout,
+        renewingSession: renewingSession,
       }}
     >
       {children}
@@ -135,10 +139,10 @@ export function withAuth<P extends object>(
 ): FunctionComponent<P> {
   // eslint-disable-next-line react/display-name
   return (props) => {
-    const auth = useAuth();
+    const {authenticated, renewingSession} = useAuth();
     const router = useRouter();
 
-    const redirect = !auth.authenticated;
+    const redirect = !authenticated && !renewingSession;
 
     useEffect(() => {
       if (redirect) {

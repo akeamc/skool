@@ -1,8 +1,8 @@
-import { ErrorMessage, Field, Form, Formik } from "formik";
+import { Field, Form, Formik } from "formik";
 import { useAuth } from "../lib/auth";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Layout from "../components/layout/layout";
 import styles from "./login.module.scss";
 

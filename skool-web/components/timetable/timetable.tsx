@@ -158,7 +158,7 @@ const Controls: FunctionComponent = () => {
       <button onClick={() => setCursor(cursor?.minus({ weeks: 1 }))}>
         prev
       </button>
-      {cursor?.toLocaleString(DateTime.DATE_FULL)}
+      Vecka {cursor?.weekNumber}
       <button onClick={() => setCursor(cursor?.plus({ weeks: 1 }))}>
         next
       </button>
