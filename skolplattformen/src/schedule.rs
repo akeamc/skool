@@ -18,7 +18,7 @@ use thiserror::Error;
 use tracing::{debug, error, instrument, trace};
 use uuid::Uuid;
 
-use cookie_store::CookieStore;
+use cookie_store::{Cookie, CookieStore};
 use reqwest_cookie_store::CookieStoreMutex;
 use select::{document::Document, predicate::Class};
 
@@ -311,7 +311,7 @@ pub struct AuthorizedClient(Client);
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Session {
     /// Cookies used in this session.
-    pub cookie_store: CookieStore,
+    pub cookies: Vec<Cookie<'static>>,
 
     /// Skola24 `X-Scope` header.
     pub scope: String,
@@ -325,10 +325,13 @@ impl Session {
     /// This function returns an error if the [`Session`]s `scope` for
     /// some reason is an invalid header value, or if the [`Client`]
     /// fails to build.
+    #[allow(clippy::missing_panics_doc)]
     pub fn try_into_client(self) -> Result<AuthorizedClient, AuthError> {
-        let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(
-            self.cookie_store,
-        ));
+        // the only way from_cookies() can be Err is if the iterator yields an Err, so we're safe
+        let cookie_store =
+            CookieStore::from_cookies(self.cookies.into_iter().map(Result::<_, ()>::Ok), true)
+                .unwrap();
+        let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
 
         let mut headers = HeaderMap::new();
 
@@ -337,7 +340,7 @@ impl Session {
             Err(_) => {
                 return Err(AuthError::ScrapingFailed {
                     details: format!("invalid header value \"{}\"", self.scope),
-                });
+                })
             }
         };
 
@@ -408,7 +411,7 @@ async fn fill_jar_with_session_data(
 
     form_body.insert("user".to_owned(), username.to_owned());
     form_body.insert("password".to_owned(), password.to_owned());
-    form_body.insert("submit".to_owned(), "".to_owned());
+    form_body.insert("submit".to_owned(), String::new());
 
     let res = client
         .post("https://login001.stockholm.se/siteminderagent/forms/login.fcc")
@@ -474,13 +477,14 @@ pub async fn start_session(username: &str, password: &str) -> Result<Session, Au
 
     let lock = Arc::try_unwrap(cookie_store).expect("lock still has multiple owners");
     let cookie_store = lock.into_inner().expect("mutex cannot be locked");
+    let cookies = cookie_store
+        .iter_any()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
 
-    debug!("got {} cookies. yum", cookie_store.iter_any().count());
+    debug!("got {} cookies. yum", cookies.len());
 
-    Ok(Session {
-        cookie_store,
-        scope,
-    })
+    Ok(Session { cookies, scope })
 }
 
 #[instrument(skip_all)]
