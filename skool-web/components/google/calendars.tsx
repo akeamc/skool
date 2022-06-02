@@ -135,10 +135,10 @@ export const GoogleCalendarExport: FunctionComponent<{
         description: lesson.teacher ?? undefined,
         location: lesson.location ?? undefined,
         start: {
-          dateTime: lesson.start,
+          dateTime: lesson.start.toISO(),
         },
         end: {
-          dateTime: lesson.end,
+          dateTime: lesson.end.toISO(),
         },
         colorId: closestColor?.id,
         id: toHex(lesson.id),
