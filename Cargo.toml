@@ -1,2 +1,2 @@
 [workspace]
-members = ["agenda", "skolplattformen", "skool", "webtoken"]
+members = ["agenda", "skolplattformen", "skool"]

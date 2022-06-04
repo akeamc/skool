@@ -1,8 +1,9 @@
 use actix_web::{http::StatusCode, ResponseError};
 use skolplattformen::schedule::AuthError;
-use skool_webtoken::crypto::CryptoError;
 use thiserror::Error;
 use tracing::error;
+
+use crate::token;
 
 #[derive(Debug, Error)]
 pub enum AppError {
@@ -43,14 +44,14 @@ impl From<AuthError> for AppError {
     }
 }
 
-impl From<CryptoError> for AppError {
-    fn from(e: CryptoError) -> Self {
+impl From<token::Error> for AppError {
+    fn from(e: token::Error) -> Self {
         match e {
-            CryptoError::Encode(_) => Self::InternalError,
-            CryptoError::Decode(_) => Self::InvalidToken,
-            CryptoError::Aes => Self::InvalidToken,
-            CryptoError::Base64(_) => Self::InvalidToken,
-            CryptoError::CiphertextTooShort => Self::InvalidToken,
+            token::Error::Encode(_) => Self::InternalError,
+            token::Error::Decode(_) => Self::InvalidToken,
+            token::Error::Aes => Self::InvalidToken,
+            token::Error::Base64(_) => Self::InvalidToken,
+            token::Error::CiphertextTooShort => Self::InvalidToken,
         }
     }
 }

@@ -4,12 +4,8 @@ use actix_web::{
 };
 use serde::{Deserialize, Serialize};
 use skolplattformen::schedule::start_session;
-use skool_webtoken::{
-    crypto::{decrypt, encrypt},
-    webtoken_config, WebtokenConfig,
-};
 
-use crate::error::AppResult;
+use crate::{error::AppResult, token};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoginInfo {
@@ -34,17 +30,19 @@ async fn create_session(
     web::Json(info): web::Json<CreateSessionInfo>,
     req: HttpRequest,
 ) -> AppResult<HttpResponse> {
-    let WebtokenConfig { key, .. } = webtoken_config(&req);
+    let token::Config { key, .. } = token::get_config(&req);
 
     let (login_info, generate_token) = match info {
         CreateSessionInfo::UsernamePassword(info) => (info, true),
-        CreateSessionInfo::LoginToken { login_token } => (decrypt(&login_token, key)?, false),
+        CreateSessionInfo::LoginToken { login_token } => {
+            (token::decrypt(&login_token, key)?, false)
+        }
     };
 
     let session = start_session(&login_info.username, &login_info.password).await?;
-    let session_token = encrypt(&session, key)?;
+    let session_token = token::encrypt(&session, key)?;
     let login_token = if generate_token {
-        Some(encrypt(&login_info, key)?)
+        Some(token::encrypt(&login_info, key)?)
     } else {
         None
     };
