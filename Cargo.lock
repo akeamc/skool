@@ -1003,7 +1003,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9ef924cc883333ecdc23b8c4a677119ec6a2db9ef7748a2ae74e77c91ef14df"
 dependencies = [
  "chrono",
- "uuid",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -1950,6 +1950,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
 
 [[package]]
+name = "sha1_smol"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae1a47186c03a32177042e55dbc5fd5aee900b8e0069a8d70fba96a9375cd012"
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1991,7 +1997,7 @@ dependencies = [
  "thiserror",
  "tokio-test",
  "tracing",
- "uuid",
+ "uuid 1.1.1",
 ]
 
 [[package]]
@@ -2019,7 +2025,7 @@ dependencies = [
  "tracing",
  "tracing-actix-web",
  "tracing-subscriber",
- "uuid",
+ "uuid 1.1.1",
 ]
 
 [[package]]
@@ -2030,7 +2036,7 @@ dependencies = [
  "csscolorparser",
  "icalendar",
  "serde",
- "uuid",
+ "uuid 1.1.1",
 ]
 
 [[package]]
@@ -2438,7 +2444,7 @@ dependencies = [
  "pin-project",
  "tracing",
  "tracing-futures",
- "uuid",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -2585,8 +2591,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.3",
+]
+
+[[package]]
+name = "uuid"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6d5d669b51467dcf7b2f1a796ce0f955f05f01cafda6c19d6e95f730df29238"
+dependencies = [
+ "getrandom 0.2.3",
  "serde",
- "sha1",
+ "sha1_smol",
 ]
 
 [[package]]
