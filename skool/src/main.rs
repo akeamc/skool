@@ -3,8 +3,7 @@ use actix_web::{web, App, HttpServer};
 
 use dotenv::dotenv;
 
-use skool::{logging::SkoolRootSpanBuilder, routes};
-use skool_webtoken::WebtokenConfig;
+use skool::{log::SkoolRootSpanBuilder, routes, token};
 use structopt::StructOpt;
 
 use tracing_actix_web::TracingLogger;
@@ -12,7 +11,7 @@ use tracing_actix_web::TracingLogger;
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(flatten)]
-    crypto: WebtokenConfig,
+    crypto: token::Config,
 }
 
 #[actix_web::main]

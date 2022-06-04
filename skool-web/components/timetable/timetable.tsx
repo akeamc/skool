@@ -1,5 +1,5 @@
 import classNames from "classnames/bind";
-import { DateTime, Duration } from "luxon";
+import { DateTime } from "luxon";
 import {
   createContext,
   FunctionComponent,
@@ -11,11 +11,9 @@ import {
 import { Lesson, useLessons } from "../../lib/schedule";
 import { Scale } from "./scale";
 import styles from "./timetable.module.scss";
-import { useContainerQuery } from "react-container-query";
-import { Query } from "react-container-query/lib/interfaces";
 import { useTime } from "../../lib/time";
 import { googleAuthUrl, GOOGLE_CALENDAR_SCOPES } from "../../lib/google/oauth";
-import chroma from "chroma-js";
+import { FloatingLesson, FloatingLessonProps } from "./lesson";
 
 const cx = classNames.bind(styles);
 
@@ -34,15 +32,6 @@ export const useTimetableContext = () => useContext(TimetableContext);
 interface Props {
   id?: string;
 }
-
-const lessonContainerQuery: Query = {
-  horizontal: {
-    maxHeight: 48,
-  },
-  narrow: {
-    maxWidth: 192,
-  },
-};
 
 const Indicator: FunctionComponent = () => {
   const now = useTime();
@@ -68,42 +57,64 @@ const Indicator: FunctionComponent = () => {
   );
 };
 
-const FloatingLesson: FunctionComponent<{ lesson: OptimizedLesson }> = ({
-  lesson,
-}) => {
-  const [params, containerRef] = useContainerQuery(lessonContainerQuery, {});
-  const now = useTime();
+function positionEvents(lessons: Lesson[]): FloatingLessonProps[] {
+  type Cell = Omit<FloatingLessonProps, "left" | "width">;
 
-  return (
-    <div
-      ref={containerRef}
-      className={cx("event", params, { past: now >= lesson.end })}
-      style={{
-        ["--start-secs" as any]: lesson.startSecs,
-        ["--duration-secs" as any]: lesson.durationSecs,
-        ["--level" as any]: lesson.level,
-      }}
-    >
-      <div className={cx("content")}>
-        <h3>{lesson.course}</h3>
-        <span>
-          <time>{lesson.start.toLocaleString(DateTime.TIME_SIMPLE)}</time>–
-          <time>{lesson.end.toLocaleString(DateTime.TIME_SIMPLE)}</time>
-          {["", lesson.location, lesson.teacher]
-            .filter((v) => typeof v == "string")
-            .join(" · ")}
-        </span>
-      </div>
-    </div>
+  const cols = lessons.reduce(
+    (cols, l) => {
+      const startSecs =
+        l.start.hour * 3600 + l.start.minute * 60 + l.start.second;
+      const durationSecs = l.end.diff(l.start).as("seconds");
+      const props = {
+        ...l,
+        startSecs,
+        durationSecs,
+        left: 0,
+        width: 1,
+      };
+
+      for (let i = 0; i < cols.length; i++) {
+        const hasSpace = cols[i].every(
+          (l) =>
+            l.startSecs + l.durationSecs <= startSecs ||
+            l.startSecs >= startSecs + durationSecs
+        );
+
+        if (hasSpace) {
+          cols[i].push(props);
+          return cols;
+        }
+      }
+
+      cols.push([props]); // start a new column
+
+      return cols;
+    },
+    [[]] as Cell[][]
   );
-};
 
-interface OptimizedLesson extends Omit<Lesson, "start" | "end"> {
-  startSecs: number;
-  durationSecs: number;
-  start: DateTime;
-  end: DateTime;
-  level: number;
+  return cols.flatMap((col, i) =>
+    col.map((l) => {
+      let spanCols = 1;
+
+      // expand to the right
+      for (let j = i + 1; j < cols.length; j++) {
+        const hasSpace = cols[j].every(
+          (other) =>
+            other.startSecs + other.durationSecs <= l.startSecs ||
+            other.startSecs >= l.startSecs + l.durationSecs
+        );
+
+        if (!hasSpace) {
+          break;
+        }
+
+        spanCols++;
+      }
+
+      return { ...l, left: i / cols.length, width: spanCols / cols.length };
+    })
+  );
 }
 
 const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
@@ -111,42 +122,16 @@ const DayColumn: FunctionComponent<{ day?: DateTime }> = ({ day }) => {
   const { year, week, id } = useTimetableContext();
   const { data } = useLessons({ timetable: id, year, week });
   const isToday = day?.hasSame(now, "day") ?? false;
-  const lessons: OptimizedLesson[] =
-    (day
-      ? data?.reduce((acc, l) => {
-          console.log("reducing");
-          const start = DateTime.fromISO(l.start).setZone(day.zone);
-          const end = DateTime.fromISO(l.end).setZone(day.zone);
-
-          if (start.hasSame(day, "day")) {
-            let conflicts = 0;
-
-            for (const l2 of acc) {
-              // no need to check start since the array is already sorted by start time
-              if (+l2.end > +start) {
-                conflicts++;
-              }
-            }
-
-            acc.push({
-              ...l,
-              startSecs: start.hour * 3600 + start.minute * 60 + start.second,
-              durationSecs: end.diff(start).as("seconds"),
-              start,
-              end,
-              level: conflicts + 1,
-            });
-          }
-
-          return acc;
-        }, [] as OptimizedLesson[])
+  const lessons: FloatingLessonProps[] =
+    (day && data
+      ? positionEvents(data.filter(({ start }) => start.hasSame(day, "day")))
       : undefined) ?? [];
 
   return (
     <div className={styles.col}>
       {isToday && <Indicator />}
       {lessons.map((lesson) => (
-        <FloatingLesson lesson={lesson} key={lesson.id} />
+        <FloatingLesson {...lesson} key={lesson.id} />
       ))}
     </div>
   );
@@ -160,7 +145,7 @@ const Controls: FunctionComponent = () => {
       <button onClick={() => setCursor(cursor?.minus({ weeks: 1 }))}>
         prev
       </button>
-      {cursor?.toLocaleString(DateTime.DATE_FULL)}
+      Vecka {cursor?.weekNumber}
       <button onClick={() => setCursor(cursor?.plus({ weeks: 1 }))}>
         next
       </button>

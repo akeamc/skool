@@ -1,5 +1,2 @@
 [workspace]
-members = ["agenda", "skolplattformen", "skool", "webtoken"]
-
-[patch.crates-io]
-cookie_store = { path = "./cookie_store" }
+members = ["agenda", "skolplattformen", "skool"]

@@ -1,10 +1,9 @@
 .table {
   --scale-size: 48px;
-  --gridline-color: #ddd;
+  --gridline-color: #eee;
   --z-top: 86400;
 
   padding: 8px;
-  background-color: #f5f5f5;
 
   @media (min-width: 768px) {
     --scale-size: 64px;
@@ -49,74 +48,5 @@
     transform: translate(-50%, -50%);
     background-color: red;
     border-radius: 100%;
-  }
-}
-
-.event {
-  position: absolute;
-  top: calc(var(--start-secs) * var(--second-height));
-  height: calc(var(--duration-secs) * var(--second-height));
-  background-color: #fff;
-  border: 1px solid #eee;
-  padding: 8px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #888;
-  overflow: hidden;
-  line-height: 1;
-  border-radius: 8px;
-  z-index: calc(var(--z-top) - var(--start-secs) + var(--indent));
-  left: calc(100% - 100% / var(--level));
-  right: calc(16px - 16px / var(--level));
-
-  &:hover {
-    z-index: var(--z-top);
-  }
-
-  .content {
-    display: flex;
-    flex-direction: column;
-  }
-
-  &.horizontal .content {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  &.horizontal h3 {
-    margin: 0;
-    margin-inline-end: 1ch;
-    min-width: 0;
-  }
-
-  &.past {
-    background: repeating-linear-gradient(
-      135deg,
-      #eee,
-      #eee 8px,
-      #ddd 8px,
-      #ddd 16px
-    );
-    opacity: 0.5;
-  }
-
-  span {
-    white-space: nowrap;
-  }
-
-  h3 {
-    margin-block: 0 12px;
-    font-size: 18px;
-    font-weight: 600;
-    color: #000;
-    line-height: 1;
-    word-wrap: break-word;
-    min-width: 20ch;
-    flex-shrink: 0;
-  }
-
-  &.narrow h3 {
-    font-size: 12px;
-    letter-spacing: -0.02em;
   }
 }
