@@ -7,7 +7,7 @@ export interface Timetable {
   school_guid: string;
   unit_guid: string;
   school_id: string;
-  timetable_id: string;
+  timetable_id: string | null;
   person_guid: string;
   first_name: string;
   last_name: string;
