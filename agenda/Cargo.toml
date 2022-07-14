@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 chrono = { version = "0.4.19", features = ["serde"] }
-csscolorparser = { version = "0.5.0", features = ["serde"] }
+csscolorparser = { version = "0.6.1", features = ["serde"] }
 icalendar = "0.10.0"
 serde = { version = "1.0.133", features = ["derive"] }
 uuid = { version = "0.8.2", features = ["serde"] }
