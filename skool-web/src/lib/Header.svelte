@@ -1,5 +1,8 @@
 <script lang="ts">
-  let scrollY: number;
+	import { authenticated, logout } from "./auth";
+	import Button from "./Button.svelte";
+
+	let scrollY: number;
 </script>
 
 <header class:floating={scrollY > 0}>
@@ -9,20 +12,34 @@
 			<li><a href="/schedule">Schema</a></li>
 		</ul>
 	</nav>
+	<div class="auth">
+		{#if $authenticated}
+			<Button type="button" on:click={logout}>Logga ut</Button>
+		{:else}
+			<a href="/login">
+				<Button type="button">Logga in</Button>
+			</a>
+		{/if}
+	</div>
 </header>
 
-<svelte:window bind:scrollY={scrollY} />
+<svelte:window bind:scrollY />
 
 <style>
 	header {
 		--border-radius: 16px;
 
 		height: var(--header-height);
-		width: 100%;
 		position: fixed;
 		top: 0;
+		left: 0;
+		right: 0;
 		z-index: 100000;
 		transition: all 0.1s;
+		display: flex;
+		justify-content: space-between;
+		gap: 24px;
+		padding-inline: 24px;
 	}
 
 	header::after {
@@ -50,8 +67,8 @@
 		--pad-x: 16px;
 
 		list-style: none;
-		padding: 0 24px;
-		margin: 0 auto;
+		padding: 0;
+		margin: 0;
 		display: flex;
 		align-items: center;
 		max-width: calc(var(--content-width) + 2 * var(--pad-x));
@@ -92,5 +109,10 @@
 
 	nav a:focus-visible {
 		outline: var(--brand-primary) solid 2px;
+	}
+
+	.auth {
+		display: flex;
+		align-items: center;
 	}
 </style>

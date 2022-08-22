@@ -1,33 +1,50 @@
 <script lang="ts">
-	import Button from "$lib/components/Button.svelte";
+	import Button from "$lib/Button.svelte";
+	import { authenticated, authenticating, createSession } from "$lib/auth";
+	import { goto } from "$app/navigation";
+	import { page } from "$app/stores";
 
-  const loggingIn = false;
+	const handleSubmit: svelte.JSX.EventHandler<SubmitEvent, HTMLFormElement> = async ({
+		target
+	}) => {
+		const data = new FormData(target as any);
 
-  const handleSubmit: svelte.JSX.EventHandler<SubmitEvent, HTMLFormElement> = ({target}) => {
-    const data = new FormData(target as any);
+		const username = data.get("username")?.toString();
+		const password = data.get("password")?.toString();
 
-    const username = data.get("username");
-    const password = data.get("password");
+		if (!username || !password) {
+			return;
+		}
 
-    console.log(username, password);
-}
+		await createSession({ username, password });
+	};
+
+	$: {
+		if ($authenticated) {
+			goto($page.url.searchParams.get("next") || "/");
+		}
+	}
 </script>
 
 <div class="root">
 	<div class="card">
-		<h1>Logga in</h1>
-		<p>Dina inloggningsuppgifter krypteras och sparas bara på den här enheten. Var försiktig!</p>
-		<form on:submit|preventDefault={handleSubmit}>
-			<label for="username">Användarnamn</label>
-			<input id="username" name="username" placeholder="ab12345" />
+		{#if $authenticated}
+			<p>Du är redan inloggad; omdirigerar ...</p>
+		{:else}
+			<h1>Logga in</h1>
+			<p>Dina inloggningsuppgifter krypteras och sparas bara på den här enheten.</p>
+			<form on:submit|preventDefault={handleSubmit}>
+				<label for="username">Användarnamn</label>
+				<input id="username" name="username" placeholder="ab12345" />
 
-			<label for="password">Lösenord</label>
-			<input id="password" name="password" type="password" />
+				<label for="password">Lösenord</label>
+				<input id="password" name="password" type="password" />
 
-			<Button type="submit" disabled={loggingIn}>
-				{loggingIn ? "Loggar in ..." : "Logga in"}
-			</Button>
-		</form>
+				<Button type="submit" disabled={$authenticating}>
+					{$authenticating ? "Loggar in ..." : "Logga in"}
+				</Button>
+			</form>
+		{/if}
 	</div>
 </div>
 
@@ -76,11 +93,11 @@
 		font-weight: 400;
 	}
 
-  form {
-    text-align: start;
-  }
+	form {
+		text-align: start;
+	}
 
-  input {
+	input {
 		height: 3rem;
 		border: 1px solid #eee;
 		border-radius: 4px;
@@ -91,20 +108,20 @@
 		padding-inline: 8px;
 		font-family: var(--font-main);
 		font-size: 14px;
-  }
+	}
 
-		input::placeholder {
-			color: #aaa;
-			opacity: 1;
-  }
+	input::placeholder {
+		color: #aaa;
+		opacity: 1;
+	}
 
-  input:focus {
-    outline: var(--brand-primary) solid 2px;
-  }
+	input:focus {
+		outline: var(--brand-primary) solid 2px;
+	}
 
-  label {
+	label {
 		font-family: var(--font-main);
 		font-size: 14px;
 		font-weight: 500;
-  }
+	}
 </style>

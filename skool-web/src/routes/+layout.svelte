@@ -1,17 +1,17 @@
 <script lang="ts">
-import Header from "$lib/components/Header.svelte";
+	import Header from "$lib/Header.svelte";
 
-  import "../app.css";
+	import "../app.css";
 </script>
 
 <Header />
 
 <main>
-  <slot />
+	<slot />
 </main>
 
 <style>
-  main {
-    padding-top: var(--header-height);
-  }
+	main {
+		padding-top: var(--header-height);
+	}
 </style>
