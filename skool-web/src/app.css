@@ -19,6 +19,7 @@ body {
   --background-secondary: #eeeff1;
   --content-width: 1440px;
   --page-gutter: 24px;
+  --header-height: 64px;
 }
 
 h1,
