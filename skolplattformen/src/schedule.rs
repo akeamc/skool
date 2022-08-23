@@ -43,7 +43,7 @@ pub struct Timetable {
 
     /// ID.
     #[serde(alias = "timetableID")]
-    pub timetable_id: String,
+    pub timetable_id: Option<String>,
 
     /// GUID of the timetable user.
     pub person_guid: String,
@@ -109,7 +109,11 @@ pub async fn get_timetable(
 ) -> Result<Option<Timetable>, reqwest::Error> {
     let timetables = list_timetables(client).await?;
 
-    Ok(timetables.into_iter().find(|t| t.timetable_id == id))
+    Ok(timetables.into_iter().find(|t| {
+        t.timetable_id
+            .as_ref()
+            .map_or(false, |timetable_id| timetable_id == id)
+    }))
 }
 
 #[instrument(skip_all)]

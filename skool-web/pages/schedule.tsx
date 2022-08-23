@@ -12,7 +12,7 @@ const Schedule: NextPage = () => {
     <Layout>
       <section>
         {timetables?.map(({ timetable_id }) => (
-          <Timetable id={timetable_id} key={timetable_id} />
+          <Timetable id={timetable_id ?? undefined} key={timetable_id} />
         ))}
       </section>
     </Layout>
