@@ -25,6 +25,7 @@ export const FloatingLesson: FunctionComponent<FloatingLessonProps> = ({
   durationSecs,
   course,
   teacher,
+  location,
   left,
   width
 }) => {
