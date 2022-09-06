@@ -5,11 +5,6 @@ updates:
     schedule:
       interval: daily
 
-  - package-ecosystem: npm
-    directory: /skool-web
-    schedule:
-      interval: daily
-
   - package-ecosystem: cargo
     directory: /
     schedule:
