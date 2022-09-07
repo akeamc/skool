@@ -1,6 +1,6 @@
 use aes_gcm_siv::aead::Aead;
-use aes_gcm_siv::{Key, KeyInit};
 use aes_gcm_siv::{Aes256GcmSiv, Nonce};
+use aes_gcm_siv::{Key, KeyInit};
 use rand::Rng;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
