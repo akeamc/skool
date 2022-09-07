@@ -1,89 +1,50 @@
 use actix_web::{
     http::header::{CacheControl, CacheDirective},
-    web, HttpRequest, HttpResponse,
+    web, HttpResponse,
 };
-use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
 
 use serde::Deserialize;
-use skolplattformen::{
-    schedule::Session,
-    schedule::{get_timetable, lessons_by_week, list_timetables},
-};
+use skolplattformen::schedule::{lessons_by_week, list_timetables};
 
 use tracing::instrument;
 
-use crate::{
-    error::{AppError, AppResult},
-    token,
-};
+use crate::error::{AppError, AppResult};
 
-async fn timetables(bearer: BearerAuth, req: HttpRequest) -> AppResult<HttpResponse> {
-    let token::Config { key, .. } = token::get_config(&req);
-    let session = token::decrypt::<Session>(bearer.token(), key)?;
-
-    let timetables = list_timetables(&session.try_into_client()?).await?;
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![
-            CacheDirective::Private,
-            CacheDirective::MaxAge(600),
-        ]))
-        .json(timetables))
-}
-
-async fn timetable(
-    id: web::Path<String>,
-    bearer: BearerAuth,
-    req: HttpRequest,
-) -> AppResult<HttpResponse> {
-    let token::Config { key, .. } = token::get_config(&req);
-    let session = token::decrypt::<Session>(bearer.token(), key)?;
-
-    let timetable = get_timetable(&session.try_into_client()?, &id)
-        .await?
-        .ok_or(AppError::TimetableNotFound)?;
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![
-            CacheDirective::Private,
-            CacheDirective::MaxAge(600),
-        ]))
-        .json(timetable))
-}
+use super::credentials::Credentials;
 
 #[derive(Debug, Deserialize)]
-struct LessonsQuery {
+struct ScheduleQuery {
     year: i32,
     week: u32,
 }
 
-impl LessonsQuery {
+impl ScheduleQuery {
     pub fn iso_week(&self) -> Option<IsoWeek> {
         NaiveDate::from_isoywd_opt(self.year, self.week, Weekday::Mon).map(|d| d.iso_week())
     }
 }
 
-#[instrument(skip(bearer, req))]
-async fn lessons(
-    query: web::Query<LessonsQuery>,
-    id: web::Path<String>,
-    bearer: BearerAuth,
-    req: HttpRequest,
-) -> AppResult<HttpResponse> {
-    let token::Config { key, .. } = token::get_config(&req);
-    let session = token::decrypt::<Session>(bearer.token(), key)?;
+#[instrument(skip(creds))]
+async fn schedule(query: web::Query<ScheduleQuery>, creds: Credentials) -> AppResult<HttpResponse> {
+    let session = match creds {
+        Credentials::Skolplattformen { username, password } => {
+            skolplattformen::schedule::start_session(&username, &password).await?
+        }
+    };
 
     let client = session.try_into_client()?;
-    let timetable = get_timetable(&client, &id)
-        .await?
-        .ok_or(AppError::TimetableNotFound)?;
+
+    let timetable = &list_timetables(&client).await?[0];
+
     let week = query
         .iso_week()
         .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
-    let lessons = lessons_by_week(&client, &timetable, week).await?;
+    let lessons = lessons_by_week(&client, timetable, week).await?;
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
-            CacheDirective::MaxAge(120),
+            CacheDirective::MaxAge(300),
         ]))
         .json(lessons))
 }
@@ -129,10 +90,5 @@ async fn lessons(
 // }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/timetables")
-            .service(web::resource("").route(web::get().to(timetables)))
-            .service(web::resource("/{id}").route(web::get().to(timetable)))
-            .service(web::resource("/{id}/lessons").route(web::get().to(lessons))), // .service(web::resource("/{id}/lessons.ics").route(web::get().to(lessons_ical))),
-    );
+    cfg.service(web::resource("").route(web::get().to(schedule)));
 }

@@ -1,4 +1,4 @@
-pub mod auth;
+pub mod credentials;
 pub mod schedule;
 
 use actix_web::{
@@ -8,12 +8,12 @@ use actix_web::{
 
 async fn get_health() -> HttpResponse {
     HttpResponse::Ok()
-        .insert_header(CacheControl(vec![CacheDirective::NoStore]))
+        .insert_header(CacheControl(vec![CacheDirective::NoCache]))
         .body("OK")
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/health").route(web::get().to(get_health)))
-        .service(web::scope("/auth").configure(auth::config))
-        .service(web::scope("/schedule").configure(schedule::config));
+        .service(web::scope("/schedule").configure(schedule::config))
+        .service(web::scope("/credentials").configure(credentials::config));
 }

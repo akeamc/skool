@@ -3,8 +3,6 @@ use skolplattformen::schedule::AuthError;
 use thiserror::Error;
 use tracing::error;
 
-use crate::token;
-
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("internal server error")]
@@ -18,6 +16,9 @@ pub enum AppError {
 
     #[error("invalid token")]
     InvalidToken,
+
+    #[error("auth error: {0}")]
+    Auth(#[from] auth1_sdk::Error),
 }
 
 impl ResponseError for AppError {
@@ -27,6 +28,7 @@ impl ResponseError for AppError {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::TimetableNotFound => StatusCode::NOT_FOUND,
             AppError::InvalidToken => StatusCode::BAD_REQUEST,
+            AppError::Auth(e) => e.status_code(),
         }
     }
 }
@@ -44,21 +46,23 @@ impl From<AuthError> for AppError {
     }
 }
 
-impl From<token::Error> for AppError {
-    fn from(e: token::Error) -> Self {
-        match e {
-            token::Error::Encode(_) => Self::InternalError,
-            token::Error::Decode(_) => Self::InvalidToken,
-            token::Error::Aes => Self::InvalidToken,
-            token::Error::Base64(_) => Self::InvalidToken,
-            token::Error::CiphertextTooShort => Self::InvalidToken,
-        }
-    }
-}
-
 impl From<reqwest::Error> for AppError {
     fn from(e: reqwest::Error) -> Self {
         error!("http request failed: {}", e);
+        Self::InternalError
+    }
+}
+
+impl From<sqlx::Error> for AppError {
+    fn from(e: sqlx::Error) -> Self {
+        error!("sqlx error: {e}");
+        Self::InternalError
+    }
+}
+
+impl From<crate::crypt::Error> for AppError {
+    fn from(e: crate::crypt::Error) -> Self {
+        error!("crypt error: {e}");
         Self::InternalError
     }
 }
