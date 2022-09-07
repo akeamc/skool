@@ -341,7 +341,7 @@ dependencies = [
 [[package]]
 name = "auth1-sdk"
 version = "0.1.0"
-source = "git+https://github.com/skolorna/auth1?branch=develop#41f36d5251e2940c86c6257faf5e0cf555061450"
+source = "git+https://github.com/skolorna/auth1?branch=develop#aea1871c8e9b0636836e5a75a70222c43df8f2ef"
 dependencies = [
  "actix-web",
  "actix-web-httpauth",
@@ -1305,7 +1305,7 @@ dependencies = [
 [[package]]
 name = "jwk"
 version = "0.1.0"
-source = "git+https://github.com/skolorna/auth1?branch=develop#41f36d5251e2940c86c6257faf5e0cf555061450"
+source = "git+https://github.com/skolorna/auth1?branch=develop#aea1871c8e9b0636836e5a75a70222c43df8f2ef"
 dependencies = [
  "base64",
  "der",
