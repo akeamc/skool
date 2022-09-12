@@ -9,7 +9,7 @@ use skolplattformen::schedule::{lessons_by_week, list_timetables};
 
 use tracing::instrument;
 
-use crate::error::{AppError, AppResult};
+use crate::error::{AppError, Result};
 
 use super::credentials::Credentials;
 
@@ -26,7 +26,7 @@ impl ScheduleQuery {
 }
 
 #[instrument(skip(creds))]
-async fn schedule(query: web::Query<ScheduleQuery>, creds: Credentials) -> AppResult<HttpResponse> {
+async fn schedule(query: web::Query<ScheduleQuery>, creds: Credentials) -> Result<HttpResponse> {
     let session = match creds {
         Credentials::Skolplattformen { username, password } => {
             skolplattformen::schedule::start_session(&username, &password).await?

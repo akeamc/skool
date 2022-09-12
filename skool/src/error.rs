@@ -1,4 +1,9 @@
-use actix_web::{http::StatusCode, ResponseError};
+use actix_web::{
+    body::BoxBody,
+    http::{header, StatusCode},
+    HttpResponse, ResponseError,
+};
+use reqwest::header::HeaderValue;
 use skolplattformen::schedule::AuthError;
 use thiserror::Error;
 use tracing::error;
@@ -17,8 +22,8 @@ pub enum AppError {
     #[error("invalid token")]
     InvalidToken,
 
-    #[error("auth error: {0}")]
-    Auth(#[from] auth1_sdk::Error),
+    #[error("{0}")]
+    Auth(#[from] auth1_sdk::actix::FromRequestError),
 }
 
 impl ResponseError for AppError {
@@ -28,7 +33,21 @@ impl ResponseError for AppError {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::TimetableNotFound => StatusCode::NOT_FOUND,
             AppError::InvalidToken => StatusCode::BAD_REQUEST,
-            AppError::Auth(e) => e.status_code(),
+            Self::Auth(e) => e.status_code(),
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        match self {
+            Self::Auth(e) => e.error_response(),
+            e => {
+                let mut res = HttpResponse::new(e.status_code());
+                res.headers_mut().insert(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("text/plain; charset=utf-8"),
+                );
+                res.set_body(BoxBody::new(e.to_string()))
+            }
         }
     }
 }
@@ -67,4 +86,4 @@ impl From<crate::crypt::Error> for AppError {
     }
 }
 
-pub type AppResult<T> = Result<T, AppError>;
+pub type Result<T, E = AppError> = core::result::Result<T, E>;

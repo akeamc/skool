@@ -3,8 +3,6 @@ name = "skool"
 version = "0.2.1"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 actix-web = "4.1.0"
 serde = { version = "1.0.133", features = ["derive"] }
@@ -20,7 +18,7 @@ tracing = "0.1.29"
 uuid = { version = "0.8.2", features = ["v4"] }
 skool-agenda = { path = "../agenda" }
 mime = "0.3.16"
-auth1-sdk = { git = "https://github.com/skolorna/auth1", branch = "develop", version = "0.1.0", features = ["actix"] }
+auth1-sdk = { git = "https://github.com/skolorna/auth1", branch = "develop", version = "0.1.1", features = ["actix"] }
 sqlx = { version = "0.6.1", features = ["runtime-actix-rustls", "postgres", "uuid"] }
 clap = { version = "3.2.20", features = ["derive", "env"] }
 aes-gcm-siv = "0.11.1"

@@ -6,7 +6,7 @@ use sqlx::PgPool;
 
 use crate::{
     crypt::{decrypt_bytes, encrypt_bytes},
-    error::{AppError, AppResult},
+    error::{AppError, Result},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -37,7 +37,7 @@ async fn save_credentials(
     creds: web::Json<Credentials>,
     config: web::Data<crate::Config>,
     db: web::Data<PgPool>,
-) -> AppResult<HttpResponse> {
+) -> Result<HttpResponse> {
     let creds = creds.into_inner();
 
     match &creds {
@@ -67,11 +67,23 @@ async fn get_credentials(creds: Credentials) -> HttpResponse {
     HttpResponse::Ok().json(PublicCredentials::from(creds))
 }
 
+async fn delete_credentials(identity: Identity, db: web::Data<PgPool>) -> Result<HttpResponse> {
+    sqlx::query!(
+        "DELETE FROM credentials WHERE uid = $1",
+        identity.claims.sub
+    )
+    .execute(db.as_ref())
+    .await?;
+
+    Ok(HttpResponse::NoContent().finish())
+}
+
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource("")
-            .route(web::post().to(save_credentials))
-            .route(web::get().to(get_credentials)),
+            .route(web::put().to(save_credentials))
+            .route(web::get().to(get_credentials))
+            .route(web::delete().to(delete_credentials)),
     );
 }
 
