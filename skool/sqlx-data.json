@@ -1,0 +1,48 @@
+{
+  "db": "PostgreSQL",
+  "3dc55c01e59234a378dddb408217fb3f491c79635728c20ebe06623b51d65aea": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "DELETE FROM credentials WHERE uid = $1"
+  },
+  "4d789ed0c3e58a3927067ec419813b28fd56914bbd83c837c3316aca2b336837": {
+    "describe": {
+      "columns": [
+        {
+          "name": "data",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT data FROM credentials WHERE uid = $1"
+  },
+  "58ceb9838c968df2ae768607a064fceaedf9b8438b0ff0c52f518166685a0827": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "\n          INSERT INTO credentials (uid, data) VALUES ($1, $2)\n          ON CONFLICT (uid) DO UPDATE\n            SET data = EXCLUDED.data\n        "
+  }
+}
