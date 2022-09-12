@@ -10,9 +10,15 @@ use sqlx::postgres::PgPoolOptions;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-    tracing_subscriber::fmt::init();
-
     let config = Config::parse();
+
+    let _guard = sentry::init(sentry::ClientOptions {
+        dsn: config.sentry_dsn.clone(),
+        environment: config.sentry_environment.clone().map(Into::into),
+        ..Default::default()
+    });
+
+    tracing_subscriber::fmt::init();
 
     let key_store = KeyStore::default();
 
@@ -29,6 +35,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
 
         App::new()
+            .wrap(sentry_actix::Sentry::new())
             .wrap(cors)
             .app_data(db.clone())
             .app_data(key_store.clone())

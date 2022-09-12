@@ -1,5 +1,6 @@
 use aes_gcm_siv::{Aes256GcmSiv, Key};
 use hex::FromHexError;
+use sentry::types::Dsn;
 
 pub mod crypt;
 pub mod error;
@@ -15,6 +16,12 @@ pub struct Config {
 
     #[clap(env, parse(try_from_str = parse_hex_key))]
     pub aes_key: Key<Aes256GcmSiv>,
+
+    #[clap(env)]
+    pub sentry_dsn: Option<Dsn>,
+
+    #[clap(env)]
+    pub sentry_environment: Option<String>,
 }
 
 fn parse_hex_key(s: &str) -> Result<Key<Aes256GcmSiv>, FromHexError> {
