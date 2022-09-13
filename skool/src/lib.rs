@@ -1,10 +1,14 @@
 use aes_gcm_siv::{Aes256GcmSiv, Key};
+use error::AppError;
 use hex::FromHexError;
 use sentry::types::Dsn;
 
+pub mod credentials;
 pub mod crypt;
 pub mod error;
 pub mod routes;
+
+pub type Result<T, E = AppError> = core::result::Result<T, E>;
 
 #[derive(clap::Parser)]
 pub struct Config {

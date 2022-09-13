@@ -1,70 +1,62 @@
-use actix_web::{web, FromRequest, HttpRequest, HttpResponse};
+use actix_web::{
+    web::{self, Payload},
+    FromRequest, HttpRequest, HttpResponse,
+};
 use auth1_sdk::Identity;
-use futures::{future::LocalBoxFuture, FutureExt};
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
 use crate::{
-    crypt::{decrypt_bytes, encrypt_bytes},
-    error::{AppError, Result},
+    credentials::{self, Credentials, PublicCredentials},
+    crypt::encrypt_bytes,
+    error::AppError,
+    Result,
 };
-
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "service", rename_all = "snake_case")]
-pub enum Credentials {
-    Skolplattformen { username: String, password: String },
-}
-
-#[derive(Serialize)]
-#[serde(tag = "service", rename_all = "snake_case")]
-pub enum PublicCredentials {
-    Skolplattformen { username: String },
-}
-
-impl From<Credentials> for PublicCredentials {
-    fn from(c: Credentials) -> Self {
-        match c {
-            Credentials::Skolplattformen {
-                username,
-                password: _,
-            } => PublicCredentials::Skolplattformen { username },
-        }
-    }
-}
 
 async fn save_credentials(
     identity: Identity,
-    creds: web::Json<Credentials>,
+    creds: web::Json<credentials::Kind>,
     config: web::Data<crate::Config>,
     db: web::Data<PgPool>,
 ) -> Result<HttpResponse> {
     let creds = creds.into_inner();
 
     match &creds {
-        Credentials::Skolplattformen { username, password } => {
+        credentials::Kind::Skolplattformen { username, password } => {
             let _ = skolplattformen::schedule::start_session(username, password).await?;
         }
     }
 
     let d = encrypt_bytes(&creds, &config.aes_key)?;
 
-    sqlx::query!(
+    let record = sqlx::query!(
         r#"
-          INSERT INTO credentials (uid, data) VALUES ($1, $2)
+          INSERT INTO credentials (uid, data, updated_at) VALUES ($1, $2, DEFAULT)
           ON CONFLICT (uid) DO UPDATE
-            SET data = EXCLUDED.data
+            SET (data, updated_at) = (EXCLUDED.data, EXCLUDED.updated_at)
+          RETURNING updated_at
         "#,
         identity.claims.sub,
-        d
+        d,
     )
-    .execute(db.as_ref())
+    .fetch_one(db.as_ref())
     .await?;
 
-    Ok(HttpResponse::Ok().finish())
+    let creds = PublicCredentials {
+        kind: creds.into(),
+        updated_at: record.updated_at,
+    };
+
+    Ok(HttpResponse::Created().json(creds))
 }
 
-async fn get_credentials(creds: Credentials) -> HttpResponse {
-    HttpResponse::Ok().json(PublicCredentials::from(creds))
+async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpResponse> {
+    let mut payload = payload.into_inner();
+
+    match Credentials::from_request(&req, &mut payload).await {
+        Ok(c) => Ok(HttpResponse::Ok().json(PublicCredentials::from(c))),
+        Err(AppError::MissingCredentials) => Err(AppError::NotFound("no credentials set".into())),
+        Err(e) => Err(e),
+    }
 }
 
 async fn delete_credentials(identity: Identity, db: web::Data<PgPool>) -> Result<HttpResponse> {
@@ -85,36 +77,4 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .route(web::get().to(get_credentials))
             .route(web::delete().to(delete_credentials)),
     );
-}
-
-impl FromRequest for Credentials {
-    type Error = AppError;
-
-    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
-
-    fn from_request(req: &HttpRequest, payload: &mut actix_web::dev::Payload) -> Self::Future {
-        let db = req
-            .app_data::<web::Data<PgPool>>()
-            .expect("web::Data<PgPool> missing in app_data")
-            .clone();
-        let key = req
-            .app_data::<web::Data<crate::Config>>()
-            .expect("web::Data<skool::Config> missing in app_data")
-            .aes_key;
-        let ident = Identity::from_request(req, payload);
-
-        async move {
-            let ident = ident.await?;
-            let record = sqlx::query!(
-                "SELECT data FROM credentials WHERE uid = $1",
-                ident.claims.sub
-            )
-            .fetch_optional(db.as_ref())
-            .await?
-            .ok_or_else(|| AppError::BadRequest("no credentials found".into()))?;
-
-            decrypt_bytes(&record.data, &key).map_err(Into::into)
-        }
-        .boxed_local()
-    }
 }

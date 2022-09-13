@@ -16,8 +16,14 @@ pub enum AppError {
     #[error("{0}")]
     BadRequest(String),
 
+    #[error("{0}")]
+    NotFound(String),
+
     #[error("timetable not found")]
     TimetableNotFound,
+
+    #[error("missing credentials")]
+    MissingCredentials,
 
     #[error("invalid token")]
     InvalidToken,
@@ -31,7 +37,9 @@ impl ResponseError for AppError {
         match self {
             AppError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::TimetableNotFound => StatusCode::NOT_FOUND,
+            AppError::MissingCredentials => StatusCode::UNAUTHORIZED,
             AppError::InvalidToken => StatusCode::BAD_REQUEST,
             Self::Auth(e) => e.status_code(),
         }
@@ -46,6 +54,7 @@ impl ResponseError for AppError {
                     header::CONTENT_TYPE,
                     HeaderValue::from_static("text/plain; charset=utf-8"),
                 );
+
                 res.set_body(BoxBody::new(e.to_string()))
             }
         }
@@ -85,5 +94,3 @@ impl From<crate::crypt::Error> for AppError {
         Self::InternalError
     }
 }
-
-pub type Result<T, E = AppError> = core::result::Result<T, E>;
