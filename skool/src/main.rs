@@ -27,7 +27,17 @@ async fn main() -> std::io::Result<()> {
         .connect(&config.database_url)
         .await
         .expect("failed to connect to database");
+
+    sqlx::migrate!("./migrations")
+        .run(&db)
+        .await
+        .expect("migrations failed");
+
     let db = web::Data::new(db);
+
+    let redis = deadpool_redis::Config::from_url(&config.redis_url)
+        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
+        .expect("failed to create redis pool");
 
     let config = web::Data::new(config);
 
@@ -38,6 +48,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(sentry_actix::Sentry::new())
             .wrap(cors)
             .app_data(db.clone())
+            .app_data(redis.clone())
             .app_data(key_store.clone())
             .app_data(config.clone())
             .configure(routes::config)

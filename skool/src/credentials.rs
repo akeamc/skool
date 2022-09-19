@@ -1,13 +1,15 @@
 use actix_web::{dev, web, FromRequest, HttpRequest};
+use aes_gcm_siv::{Aes256GcmSiv, Key};
 use auth1_sdk::Identity;
 use chrono::{DateTime, Utc};
 use futures::{future::LocalBoxFuture, FutureExt};
+use sentry::types::Uuid;
 use serde::{Deserialize, Serialize};
-use skolplattformen::schedule::AuthorizedClient;
-use sqlx::PgPool;
+
+use sqlx::{PgExecutor, PgPool};
 use tracing::error;
 
-use crate::{crypt::decrypt_bytes, error::AppError, Result};
+use crate::{crypt::decrypt_bytes, error::AppError, session::Session, Result};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "service", rename_all = "snake_case")]
@@ -57,14 +59,34 @@ impl From<Credentials> for PublicCredentials {
 }
 
 impl Credentials {
-    pub async fn into_client(self) -> Result<AuthorizedClient> {
-        let session = match self.kind {
+    pub async fn into_session(self) -> Result<Session> {
+        match self.kind {
             Kind::Skolplattformen { username, password } => {
-                skolplattformen::schedule::start_session(&username, &password).await?
+                let session =
+                    skolplattformen::schedule::start_session(&username, &password).await?;
+                Ok(Session::Skolplattformen(session))
             }
-        };
+        }
+    }
 
-        session.try_into_client().map_err(Into::into)
+    pub async fn get(user: Uuid, db: impl PgExecutor<'_>, key: Key<Aes256GcmSiv>) -> Result<Self> {
+        let record = sqlx::query!(
+            "SELECT updated_at, data FROM credentials WHERE uid = $1",
+            user
+        )
+        .fetch_optional(db)
+        .await?
+        .ok_or(AppError::MissingCredentials)?;
+
+        let kind: Kind = decrypt_bytes(&record.data, &key).map_err(|e| {
+            error!("decrypt error: {e}");
+            AppError::MissingCredentials
+        })?;
+
+        Ok(Self {
+            updated_at: record.updated_at,
+            kind,
+        })
     }
 }
 
@@ -86,23 +108,9 @@ impl FromRequest for Credentials {
 
         async move {
             let ident = ident.await?;
-            let record = sqlx::query!(
-                "SELECT updated_at, data FROM credentials WHERE uid = $1",
-                ident.claims.sub
-            )
-            .fetch_optional(db.as_ref())
-            .await?
-            .ok_or(AppError::MissingCredentials)?;
+            let credentials = Self::get(ident.claims.sub, db.as_ref(), key).await?;
 
-            let inner: Kind = decrypt_bytes(&record.data, &key).map_err(|e| {
-                error!("decrypt error: {e}");
-                AppError::MissingCredentials
-            })?;
-
-            Ok(Credentials {
-                updated_at: record.updated_at,
-                kind: inner,
-            })
+            Ok(credentials)
         }
         .boxed_local()
     }

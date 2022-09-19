@@ -3,6 +3,7 @@ use actix_web::{
     http::{header, StatusCode},
     HttpResponse, ResponseError,
 };
+use deadpool_redis::redis::RedisError;
 use reqwest::header::HeaderValue;
 use skolplattformen::schedule::AuthError;
 use thiserror::Error;
@@ -91,6 +92,20 @@ impl From<sqlx::Error> for AppError {
 impl From<crate::crypt::Error> for AppError {
     fn from(e: crate::crypt::Error) -> Self {
         error!("crypt error: {e}");
+        Self::InternalError
+    }
+}
+
+impl From<RedisError> for AppError {
+    fn from(e: RedisError) -> Self {
+        error!("redis error: {e}");
+        Self::InternalError
+    }
+}
+
+impl From<deadpool_redis::PoolError> for AppError {
+    fn from(e: deadpool_redis::PoolError) -> Self {
+        error!("redis pool error: {e}");
         Self::InternalError
     }
 }

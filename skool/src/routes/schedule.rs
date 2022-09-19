@@ -5,11 +5,10 @@ use actix_web::{
 use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
 
 use serde::Deserialize;
-use skolplattformen::schedule::{lessons_by_week, list_timetables};
 
 use tracing::instrument;
 
-use crate::{credentials::Credentials, error::AppError, Result};
+use crate::{error::AppError, session::Session, Result};
 
 #[derive(Debug, Deserialize)]
 struct ScheduleQuery {
@@ -23,20 +22,18 @@ impl ScheduleQuery {
     }
 }
 
-#[instrument(skip(creds))]
-async fn schedule(query: web::Query<ScheduleQuery>, creds: Credentials) -> Result<HttpResponse> {
-    let client = creds.into_client().await?;
-
-    let timetable = &list_timetables(&client).await?[0];
-
+#[instrument(skip(session))]
+async fn schedule(query: web::Query<ScheduleQuery>, session: Session) -> Result<HttpResponse> {
     let week = query
         .iso_week()
         .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
-    let lessons = lessons_by_week(&client, timetable, week).await?;
+
+    let lessons = session.list_lessons(week).await?;
+
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
-            CacheDirective::MaxAge(300),
+            CacheDirective::MaxAge(3600),
         ]))
         .json(lessons))
 }

@@ -9,7 +9,7 @@ use crate::{
     credentials::{self, Credentials, PublicCredentials},
     crypt::encrypt_bytes,
     error::AppError,
-    Result,
+    session, Result,
 };
 
 async fn save_credentials(
@@ -17,6 +17,7 @@ async fn save_credentials(
     creds: web::Json<credentials::Kind>,
     config: web::Data<crate::Config>,
     db: web::Data<PgPool>,
+    redis: web::Data<deadpool_redis::Pool>,
 ) -> Result<HttpResponse> {
     let creds = creds.into_inner();
 
@@ -41,6 +42,8 @@ async fn save_credentials(
     .fetch_one(db.as_ref())
     .await?;
 
+    session::purge(&mut redis.get().await?, identity.claims.sub).await?;
+
     let creds = PublicCredentials {
         kind: creds.into(),
         updated_at: record.updated_at,
@@ -59,13 +62,19 @@ async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpRespo
     }
 }
 
-async fn delete_credentials(identity: Identity, db: web::Data<PgPool>) -> Result<HttpResponse> {
+async fn delete_credentials(
+    identity: Identity,
+    db: web::Data<PgPool>,
+    redis: web::Data<deadpool_redis::Pool>,
+) -> Result<HttpResponse> {
     sqlx::query!(
         "DELETE FROM credentials WHERE uid = $1",
         identity.claims.sub
     )
     .execute(db.as_ref())
     .await?;
+
+    session::purge(&mut redis.get().await?, identity.claims.sub).await?;
 
     Ok(HttpResponse::NoContent().finish())
 }

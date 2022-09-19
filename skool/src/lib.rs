@@ -7,16 +7,20 @@ pub mod credentials;
 pub mod crypt;
 pub mod error;
 pub mod routes;
+pub mod session;
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 
 #[derive(clap::Parser)]
 pub struct Config {
-    #[clap(long, env)]
+    #[clap(env)]
     pub database_url: String,
 
     #[clap(long, env, default_value = "10")]
     pub max_database_connections: u32,
+
+    #[clap(env)]
+    pub redis_url: String,
 
     #[clap(env, parse(try_from_str = parse_hex_key))]
     pub aes_key: Key<Aes256GcmSiv>,
