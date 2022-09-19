@@ -15,7 +15,7 @@ struct Health {
 impl Default for Health {
     fn default() -> Self {
         Self {
-            version: env!("CARGO_PKG_VERSION")
+            version: env!("CARGO_PKG_VERSION"),
         }
     }
 }

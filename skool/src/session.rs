@@ -1,7 +1,8 @@
 use actix_web::{web, FromRequest};
+use aes_gcm_siv::{Aes256GcmSiv, Key};
 use auth1_sdk::Identity;
 use chrono::IsoWeek;
-use deadpool_redis::redis;
+use deadpool_redis::redis::{self, aio::ConnectionLike};
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 use skolplattformen::schedule::{lessons_by_week, list_timetables};
@@ -46,6 +47,23 @@ impl Session {
 
 pub fn cache_key(user: Uuid) -> String {
     format!("v{}:sessions:{user}", env!("CARGO_PKG_VERSION"))
+}
+
+pub async fn save_to_cache<C: ConnectionLike>(
+    session: &Session,
+    user: Uuid,
+    aes_key: &Key<Aes256GcmSiv>,
+    conn: &mut C,
+) -> Result<()> {
+    let cache_key = cache_key(user);
+
+    redis::pipe()
+        .set(&cache_key, encrypt_bytes(session, aes_key)?)
+        .expire(&cache_key, session.ttl())
+        .query_async::<_, ()>(conn)
+        .await?;
+
+    Ok(())
 }
 
 pub async fn purge<C: redis::aio::ConnectionLike>(conn: &mut C, user: Uuid) -> Result<()> {
@@ -106,11 +124,7 @@ impl FromRequest for Session {
 
             let session = credentials.into_session().await?;
 
-            redis::pipe()
-                .set(&cache_key, encrypt_bytes(&session, &key)?)
-                .expire(&cache_key, session.ttl())
-                .query_async::<_, ()>(&mut redis)
-                .await?;
+            save_to_cache(&session, ident.claims.sub, &key, &mut redis).await?;
 
             Ok(session)
         }
