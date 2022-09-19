@@ -5,11 +5,25 @@ use actix_web::{
     http::header::{CacheControl, CacheDirective},
     web, HttpResponse,
 };
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+struct Health {
+    version: &'static str,
+}
+
+impl Default for Health {
+    fn default() -> Self {
+        Self {
+            version: env!("CARGO_PKG_VERSION")
+        }
+    }
+}
 
 async fn get_health() -> HttpResponse {
     HttpResponse::Ok()
         .insert_header(CacheControl(vec![CacheDirective::NoCache]))
-        .body("OK")
+        .json(Health::default())
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
