@@ -10,6 +10,7 @@ use reqwest::{
     header::{HeaderMap, HeaderValue},
     Client, StatusCode,
 };
+use reqwest_cookie_store::CookieStoreMutex;
 use select::predicate::Name;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -19,7 +20,7 @@ use tracing::{debug, error, instrument, trace};
 use uuid::Uuid;
 
 use cookie_store::{Cookie, CookieStore};
-use reqwest_cookie_store::CookieStoreMutex;
+
 use select::{document::Document, predicate::Class};
 
 use crate::{
@@ -306,9 +307,9 @@ pub enum AuthError {
     },
 }
 
-#[derive(Debug)]
 /// A wrapper around [`Client`] that prevents unauthorized [`Client`]s
 /// from accidentaly being passed to Skolplattformen functions.
+#[derive(Debug)]
 pub struct AuthorizedClient(Client);
 
 /// Skolplattformen session info.
@@ -330,11 +331,11 @@ impl Session {
     /// some reason is an invalid header value, or if the [`Client`]
     /// fails to build.
     #[allow(clippy::missing_panics_doc)]
+    #[instrument]
     pub fn try_into_client(self) -> Result<AuthorizedClient, AuthError> {
         // the only way from_cookies() can be Err is if the iterator yields an Err, so we're safe
         let cookie_store =
-            CookieStore::from_cookies(self.cookies.into_iter().map(Result::<_, ()>::Ok), true)
-                .unwrap();
+            CookieStore::from_cookies(self.cookies.into_iter().map(Ok::<_, ()>), true).unwrap();
         let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
 
         let mut headers = HeaderMap::new();
@@ -360,20 +361,11 @@ impl Session {
     }
 }
 
-#[instrument(skip(password, cookie_store))]
-async fn fill_jar_with_session_data(
-    username: &str,
-    password: &str,
-    cookie_store: Arc<CookieStoreMutex>,
-) -> Result<String, AuthError> {
-    let client = Client::builder()
-        .cookie_provider(cookie_store.clone())
-        .user_agent(USER_AGENT)
-        .build()?;
-
+#[instrument(skip(password, client))]
+async fn login(username: &str, password: &str, client: &Client) -> Result<(), AuthError> {
     trace!("GETting login page");
 
-    let doc = get_doc(&client, "https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/authenticate?customer=https://login001.stockholm.se&targetsystem=TimetableViewer").await?;
+    let doc = get_doc(client, "https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/authenticate?customer=https://login001.stockholm.se&targetsystem=TimetableViewer").await?;
 
     let student_href = doc
         .find(Class("navBtn"))
@@ -390,7 +382,7 @@ async fn fill_jar_with_session_data(
 
     trace!(student_login_url = student_login_url.as_str());
 
-    let student_doc = get_doc(&client, &student_login_url).await?;
+    let student_doc = get_doc(client, &student_login_url).await?;
 
     let username_password_href = student_doc
         .find(Class("beta"))
@@ -401,7 +393,7 @@ async fn fill_jar_with_session_data(
         })?;
 
     let doc = get_doc(
-        &client,
+        client,
         format!(
             "https://login001.stockholm.se/siteminderagent/forms/{}",
             username_password_href
@@ -452,11 +444,7 @@ async fn fill_jar_with_session_data(
         .send()
         .await?;
 
-    let scope = get_scope(&client).await?;
-
-    trace!("all requests done");
-
-    Ok(scope)
+    Ok(())
 }
 
 /// Start a session.
@@ -469,15 +457,22 @@ async fn fill_jar_with_session_data(
 /// # tokio_test::block_on(async {
 /// let session = skolplattformen::schedule::start_session(&username, &password).await.unwrap();
 ///
-/// assert!(session.cookie_store.iter_any().count() > 0);
+/// assert!(session.cookies.len() > 0);
 /// # })
 /// ```
 #[instrument(skip(password))]
 pub async fn start_session(username: &str, password: &str) -> Result<Session, AuthError> {
-    let cookie_store = CookieStore::default();
-    let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
+    let cookie_store = Arc::new(CookieStoreMutex::new(CookieStore::default()));
 
-    let scope = fill_jar_with_session_data(username, password, cookie_store.clone()).await?;
+    let client = Client::builder()
+        .cookie_provider(cookie_store.clone())
+        .user_agent(USER_AGENT)
+        .build()?;
+
+    login(username, password, &client).await?;
+    let scope = get_scope(&client).await?;
+
+    drop(client);
 
     let lock = Arc::try_unwrap(cookie_store).expect("lock still has multiple owners");
     let cookie_store = lock.into_inner().expect("mutex cannot be locked");
@@ -486,7 +481,7 @@ pub async fn start_session(username: &str, password: &str) -> Result<Session, Au
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
 
-    debug!("got {} cookies. yum", cookies.len());
+    debug!("got {} cookies", cookies.len());
 
     Ok(Session { cookies, scope })
 }

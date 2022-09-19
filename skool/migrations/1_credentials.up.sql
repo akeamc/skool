@@ -1,0 +1,5 @@
+CREATE TABLE credentials (
+  uid UUID PRIMARY KEY,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data BYTEA NOT NULL
+);

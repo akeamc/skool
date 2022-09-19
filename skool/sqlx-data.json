@@ -1,0 +1,62 @@
+{
+  "db": "PostgreSQL",
+  "2551ed7669fb14e96360b0c93037b4e7252244d1b5e4dcefeae13f086e9e1d95": {
+    "describe": {
+      "columns": [
+        {
+          "name": "updated_at",
+          "ordinal": 0,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "data",
+          "ordinal": 1,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT updated_at, data FROM credentials WHERE uid = $1"
+  },
+  "3dc55c01e59234a378dddb408217fb3f491c79635728c20ebe06623b51d65aea": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "DELETE FROM credentials WHERE uid = $1"
+  },
+  "a6281e276b1ce8af55308130c08a0eb5524ebd5ffd3831cafa40ad55613a1d54": {
+    "describe": {
+      "columns": [
+        {
+          "name": "updated_at",
+          "ordinal": 0,
+          "type_info": "Timestamptz"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "\n          INSERT INTO credentials (uid, data, updated_at) VALUES ($1, $2, DEFAULT)\n          ON CONFLICT (uid) DO UPDATE\n            SET (data, updated_at) = (EXCLUDED.data, EXCLUDED.updated_at)\n          RETURNING updated_at\n        "
+  }
+}
