@@ -11,10 +11,22 @@ use tracing::error;
 
 use crate::{crypt::decrypt_bytes, error::AppError, session::Session, Result};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "service", rename_all = "snake_case")]
 pub enum Kind {
     Skolplattformen { username: String, password: String },
+}
+
+impl Kind {
+    pub async fn into_session(self) -> Result<Session> {
+        match self {
+            Kind::Skolplattformen { username, password } => {
+                let session =
+                    skolplattformen::schedule::start_session(&username, &password).await?;
+                Ok(Session::Skolplattformen(session))
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,7 +46,7 @@ impl From<Kind> for PublicKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Credentials {
     pub updated_at: DateTime<Utc>,
     pub kind: Kind,
@@ -60,13 +72,7 @@ impl From<Credentials> for PublicCredentials {
 
 impl Credentials {
     pub async fn into_session(self) -> Result<Session> {
-        match self.kind {
-            Kind::Skolplattformen { username, password } => {
-                let session =
-                    skolplattformen::schedule::start_session(&username, &password).await?;
-                Ok(Session::Skolplattformen(session))
-            }
-        }
+        self.kind.into_session().await
     }
 
     pub async fn get(user: Uuid, db: impl PgExecutor<'_>, key: Key<Aes256GcmSiv>) -> Result<Self> {

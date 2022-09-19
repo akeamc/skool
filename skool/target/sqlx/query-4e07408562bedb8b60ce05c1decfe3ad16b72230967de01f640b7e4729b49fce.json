@@ -1,13 +1,22 @@
 {
-  "query": "DELETE FROM credentials WHERE uid = $1",
+  "query": "\n          INSERT INTO credentials (uid, data, updated_at) VALUES ($1, $2, DEFAULT)\n          ON CONFLICT (uid) DO UPDATE\n            SET (data, updated_at) = (EXCLUDED.data, EXCLUDED.updated_at)\n          RETURNING updated_at\n        ",
   "describe": {
-    "columns": [],
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Bytea"
       ]
     },
-    "nullable": []
+    "nullable": [
+      false
+    ]
   },
-  "hash": "3dc55c01e59234a378dddb408217fb3f491c79635728c20ebe06623b51d65aea"
+  "hash": "a6281e276b1ce8af55308130c08a0eb5524ebd5ffd3831cafa40ad55613a1d54"
 }

@@ -17,17 +17,15 @@ async fn save_credentials(
     creds: web::Json<credentials::Kind>,
     config: web::Data<crate::Config>,
     db: web::Data<PgPool>,
-    redis: web::Data<deadpool_redis::Pool>,
+    req: HttpRequest,
 ) -> Result<HttpResponse> {
+    let redis = req
+        .app_data::<deadpool_redis::Pool>()
+        .expect("redis pool not set in app_data");
+
     let creds = creds.into_inner();
-
-    match &creds {
-        credentials::Kind::Skolplattformen { username, password } => {
-            let _ = skolplattformen::schedule::start_session(username, password).await?;
-        }
-    }
-
     let d = encrypt_bytes(&creds, &config.aes_key)?;
+    let session = creds.clone().into_session().await?;
 
     let record = sqlx::query!(
         r#"
@@ -40,6 +38,14 @@ async fn save_credentials(
         d,
     )
     .fetch_one(db.as_ref())
+    .await?;
+
+    session::save_to_cache(
+        &session,
+        identity.claims.sub,
+        &config.aes_key,
+        &mut redis.get().await?,
+    )
     .await?;
 
     session::purge(&mut redis.get().await?, identity.claims.sub).await?;
@@ -65,8 +71,12 @@ async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpRespo
 async fn delete_credentials(
     identity: Identity,
     db: web::Data<PgPool>,
-    redis: web::Data<deadpool_redis::Pool>,
+    req: HttpRequest,
 ) -> Result<HttpResponse> {
+    let redis = req
+        .app_data::<deadpool_redis::Pool>()
+        .expect("redis pool not set in app_data");
+
     sqlx::query!(
         "DELETE FROM credentials WHERE uid = $1",
         identity.claims.sub
