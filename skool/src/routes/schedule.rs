@@ -34,6 +34,7 @@ async fn schedule(query: web::Query<ScheduleQuery>, session: Session) -> Result<
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
             CacheDirective::MaxAge(3600),
+            CacheDirective::Extension("stale-while-revalidate".into(), Some("604800".into())),
         ]))
         .json(lessons))
 }
