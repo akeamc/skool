@@ -1,13 +1,13 @@
 [package]
 name = "skool"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 
 [dependencies]
 actix-web = "4.1.0"
 serde = { version = "1.0.133", features = ["derive"] }
 skolplattformen = { path = "../skolplattformen" }
-thiserror = "1.0.30"
+thiserror = "1.0.36"
 futures = "0.3.19"
 actix-cors = "0.6.1"
 chrono = "0.4.19"
