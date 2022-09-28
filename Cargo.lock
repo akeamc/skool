@@ -65,7 +65,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "rand 0.8.5",
- "sha1 0.10.4",
+ "sha1",
  "smallvec",
  "tracing",
  "zstd",
@@ -2560,15 +2560,6 @@ dependencies = [
 
 [[package]]
 name = "sha1"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1da05c97445caa12d05e848c4a4fcbbea29e748ac28f7e80e9b010392063770"
-dependencies = [
- "sha1_smol",
-]
-
-[[package]]
-name = "sha1"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "006769ba83e921b3085caa8334186b00cf92b4cb1a6cf4632fbccc8eff5c7549"
@@ -2649,7 +2640,7 @@ dependencies = [
  "thiserror",
  "tokio-test",
  "tracing",
- "uuid 0.8.2",
+ "uuid 1.1.2",
 ]
 
 [[package]]
@@ -2690,7 +2681,7 @@ dependencies = [
  "csscolorparser",
  "icalendar",
  "serde",
- "uuid 0.8.2",
+ "uuid 1.1.2",
 ]
 
 [[package]]
@@ -3254,8 +3245,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.7",
- "serde",
- "sha1 0.6.1",
 ]
 
 [[package]]
@@ -3266,6 +3255,7 @@ checksum = "dd6469f4314d5f1ffec476e05f17cc9a78bc7a27a6a857842170bdf8d6f98d2f"
 dependencies = [
  "getrandom 0.2.7",
  "serde",
+ "sha1_smol",
 ]
 
 [[package]]
