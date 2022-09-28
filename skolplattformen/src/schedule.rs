@@ -176,11 +176,11 @@ impl Lesson {
         let start = NaiveTime::parse_from_str(&self.time_start, Lesson::TIME_FMT).ok()?;
         let end = NaiveTime::parse_from_str(&self.time_end, Lesson::TIME_FMT).ok()?;
 
-        let mut texts = self.texts.into_iter();
-        let course = texts.next().filter(|s| !s.is_empty());
+        let mut texts = self.texts.into_iter().filter(|s| !s.is_empty());
+        let course = texts.next();
         // `texts` is sometimes [course, location] and sometimes [course, teacher, location]
-        let location = texts.next_back().filter(|s| !s.is_empty());
-        let teacher = texts.next().filter(|s| !s.is_empty());
+        let location = texts.next_back();
+        let teacher = texts.next();
 
         Some(skool_agenda::Lesson {
             start: Lesson::TZ
