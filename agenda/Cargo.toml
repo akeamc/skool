@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4.19", features = ["serde"] }
+chrono = { version = "0.4.22", features = ["serde"] }
 csscolorparser = { version = "0.6.2", features = ["serde"] }
 icalendar = "0.10.0"
 serde = { version = "1.0.145", features = ["derive"] }
