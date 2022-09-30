@@ -1,4 +1,4 @@
-FROM clux/muslrust:1.63.1 as build
+FROM clux/muslrust:1.63.0 as build
 WORKDIR /app
 COPY . .
 RUN cargo build --release --bin skool
