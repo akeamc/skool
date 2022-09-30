@@ -6,10 +6,10 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use sentry::types::Uuid;
 use serde::{Deserialize, Serialize};
 
-use sqlx::{PgExecutor, PgPool};
+use sqlx::PgExecutor;
 use tracing::error;
 
-use crate::{crypt::decrypt_bytes, error::AppError, session::Session, Result};
+use crate::{crypt::decrypt_bytes, error::AppError, session::Session, ApiContext, Result};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "service", rename_all = "snake_case")]
@@ -75,7 +75,7 @@ impl Credentials {
         self.kind.into_session().await
     }
 
-    pub async fn get(user: Uuid, db: impl PgExecutor<'_>, key: Key<Aes256GcmSiv>) -> Result<Self> {
+    pub async fn get(user: Uuid, db: impl PgExecutor<'_>, key: &Key<Aes256GcmSiv>) -> Result<Self> {
         let record = sqlx::query!(
             "SELECT updated_at, data FROM credentials WHERE uid = $1",
             user
@@ -84,7 +84,7 @@ impl Credentials {
         .await?
         .ok_or(AppError::MissingCredentials)?;
 
-        let kind: Kind = decrypt_bytes(&record.data, &key).map_err(|e| {
+        let kind: Kind = decrypt_bytes(&record.data, key).map_err(|e| {
             error!("decrypt error: {e}");
             AppError::MissingCredentials
         })?;
@@ -102,19 +102,12 @@ impl FromRequest for Credentials {
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
-        let db = req
-            .app_data::<web::Data<PgPool>>()
-            .expect("web::Data<PgPool> missing in app_data")
-            .clone();
-        let key = req
-            .app_data::<web::Data<crate::Config>>()
-            .expect("web::Data<skool::Config> missing in app_data")
-            .aes_key;
+        let ctx = web::Data::<ApiContext>::extract(req).into_inner().unwrap();
         let ident = Identity::from_request(req, payload);
 
         async move {
             let ident = ident.await?;
-            let credentials = Self::get(ident.claims.sub, db.as_ref(), key).await?;
+            let credentials = Self::get(ident.claims.sub, &ctx.postgres, ctx.aes_key()).await?;
 
             Ok(credentials)
         }

@@ -3,28 +3,21 @@ use actix_web::{
     FromRequest, HttpRequest, HttpResponse,
 };
 use auth1_sdk::Identity;
-use sqlx::PgPool;
 
 use crate::{
     credentials::{self, Credentials, PublicCredentials},
     crypt::encrypt_bytes,
     error::AppError,
-    session, Result,
+    session, ApiContext, Result,
 };
 
 async fn save_credentials(
     identity: Identity,
     creds: web::Json<credentials::Kind>,
-    config: web::Data<crate::Config>,
-    db: web::Data<PgPool>,
-    req: HttpRequest,
+    ctx: web::Data<ApiContext>,
 ) -> Result<HttpResponse> {
-    let redis = req
-        .app_data::<deadpool_redis::Pool>()
-        .expect("redis pool not set in app_data");
-
     let creds = creds.into_inner();
-    let d = encrypt_bytes(&creds, &config.aes_key)?;
+    let d = encrypt_bytes(&creds, ctx.aes_key())?;
     let session = creds.clone().into_session().await?;
 
     let record = sqlx::query!(
@@ -37,18 +30,14 @@ async fn save_credentials(
         identity.claims.sub,
         d,
     )
-    .fetch_one(db.as_ref())
+    .fetch_one(&ctx.postgres)
     .await?;
 
-    session::save_to_cache(
-        &session,
-        identity.claims.sub,
-        &config.aes_key,
-        &mut redis.get().await?,
-    )
-    .await?;
+    let mut redis = ctx.redis.get().await?;
 
-    session::purge(&mut redis.get().await?, identity.claims.sub).await?;
+    session::save_to_cache(&session, identity.claims.sub, ctx.aes_key(), &mut redis).await?;
+
+    session::purge(&mut redis, identity.claims.sub).await?;
 
     let creds = PublicCredentials {
         kind: creds.into(),
@@ -70,21 +59,16 @@ async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpRespo
 
 async fn delete_credentials(
     identity: Identity,
-    db: web::Data<PgPool>,
-    req: HttpRequest,
+    ctx: web::Data<ApiContext>,
 ) -> Result<HttpResponse> {
-    let redis = req
-        .app_data::<deadpool_redis::Pool>()
-        .expect("redis pool not set in app_data");
-
     sqlx::query!(
         "DELETE FROM credentials WHERE uid = $1",
         identity.claims.sub
     )
-    .execute(db.as_ref())
+    .execute(&ctx.postgres)
     .await?;
 
-    session::purge(&mut redis.get().await?, identity.claims.sub).await?;
+    session::purge(&mut ctx.redis.get().await?, identity.claims.sub).await?;
 
     Ok(HttpResponse::NoContent().finish())
 }

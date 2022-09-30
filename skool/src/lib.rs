@@ -2,6 +2,7 @@ use aes_gcm_siv::{Aes256GcmSiv, Key};
 use error::AppError;
 use hex::FromHexError;
 use sentry::types::Dsn;
+use sqlx::Postgres;
 
 pub mod credentials;
 pub mod crypt;
@@ -36,4 +37,16 @@ fn parse_hex_key(s: &str) -> Result<Key<Aes256GcmSiv>, FromHexError> {
     let mut data = [0; 32];
     hex::decode_to_slice(s, &mut data)?;
     Ok(*Key::<Aes256GcmSiv>::from_slice(&data))
+}
+
+pub struct ApiContext {
+    pub postgres: sqlx::Pool<Postgres>,
+    pub redis: deadpool_redis::Pool,
+    pub config: Config,
+}
+
+impl ApiContext {
+    pub fn aes_key(&self) -> &Key<Aes256GcmSiv> {
+        &self.config.aes_key
+    }
 }

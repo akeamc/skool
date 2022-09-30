@@ -340,14 +340,10 @@ impl Session {
 
         let mut headers = HeaderMap::new();
 
-        let scope_header = match HeaderValue::from_str(&self.scope) {
-            Ok(v) => v,
-            Err(_) => {
-                return Err(AuthError::ScrapingFailed {
-                    details: format!("invalid header value \"{}\"", self.scope),
-                })
-            }
-        };
+        let scope_header =
+            HeaderValue::from_str(&self.scope).map_err(|_| AuthError::ScrapingFailed {
+                details: format!("invalid header value \"{}\"", self.scope),
+            })?;
 
         headers.insert("X-Scope", scope_header);
 

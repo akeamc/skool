@@ -6,7 +6,10 @@ use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
 
 use serde::Deserialize;
 
-use tracing::instrument;
+use ::skolplattformen::schedule::lessons_by_week;
+use skolplattformen::schedule::list_timetables;
+use skool_agenda::Lesson;
+use tracing::{error, instrument};
 
 use crate::{error::AppError, session::Session, Result};
 
@@ -28,7 +31,7 @@ async fn schedule(query: web::Query<ScheduleQuery>, session: Session) -> Result<
         .iso_week()
         .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
 
-    let lessons = session.list_lessons(week).await?;
+    let lessons = list_lessons(session, week).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
@@ -39,45 +42,21 @@ async fn schedule(query: web::Query<ScheduleQuery>, session: Session) -> Result<
         .json(lessons))
 }
 
-// async fn lessons_ical(
-//     id: web::Path<String>,
-//     query: web::Query<IcalQuery>,
-//     conf: web::Data<WebhookConfig>,
-// ) -> AppResult<HttpResponse> {
-//     let info = decrypt::<LoginInfo>(&query.webhook_token, &conf.key)?;
-//     let client = start_session(&info.username, &info.password)
-//         .await?
-//         .try_into_client()?;
-//     let timetable = get_timetable(&client, &id)
-//         .await?
-//         .ok_or(AppError::TimetableNotFound)?;
-//     let now = Utc::now();
+async fn list_lessons(session: Session, week: IsoWeek) -> Result<Vec<Lesson>> {
+    match session {
+        Session::Skolplattformen(session) => {
+            let client = session.try_into_client()?;
+            let mut timetables = list_timetables(&client).await?.into_iter();
+            let timetable = timetables.next().ok_or_else(|| {
+                error!("got 0 timetables");
+                AppError::InternalError
+            })?;
+            let lessons = lessons_by_week(&client, &timetable, week).await?;
 
-//     let mut lessons = vec![];
-
-//     let weeks = stream::iter(0..25).map(|i| (now + Duration::weeks(i)).iso_week());
-
-//     let mut stream = weeks
-//         .map(|w| lessons_by_week(&client, &timetable, w))
-//         .buffer_unordered(5);
-
-//     while let Some(response) = stream.next().await {
-//         let mut vec = response?;
-
-//         lessons.append(&mut vec);
-//     }
-
-//     debug!("found {} lessons", lessons.len());
-
-//     let calendar = build_calendar(lessons.into_iter());
-
-//     Ok(HttpResponse::Ok()
-//         .insert_header(CacheControl(vec![CacheDirective::Private]))
-//         .insert_header(header::ContentType(
-//             Mime::from_str("text/calendar").unwrap(),
-//         ))
-//         .body(calendar.to_string()))
-// }
+            Ok(lessons)
+        }
+    }
+}
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("").route(web::get().to(schedule)));
