@@ -387,7 +387,7 @@ dependencies = [
  "thiserror",
  "time 0.3.14",
  "tokio",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -566,26 +566,24 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.20"
+version = "4.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23b71c3ce99b7611011217b366d923f1d0a7e07a92bb2dbf1e84508c673ca3bd"
+checksum = "0a1af219c3e254a8b4649d6ddaef886b2015089f35f2ac5e1db31410c0566ab8"
 dependencies = [
  "atty",
  "bitflags",
  "clap_derive",
  "clap_lex",
- "indexmap",
  "once_cell",
  "strsim",
  "termcolor",
- "textwrap",
 ]
 
 [[package]]
 name = "clap_derive"
-version = "3.2.18"
+version = "4.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea0c8bce528c4be4da13ea6fead8965e95b6073585a2f05204bd8f4119f82a65"
+checksum = "cd114ae53ce5a0670f43d2f169c1cd26c69b4896b0c121900cf1e4d06d67316c"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -596,9 +594,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
+checksum = "0d4198f73e42b4936b35b5bb248d81d2b595ecb170da0bac7655c54eedfa8da8"
 dependencies = [
  "os_str_bytes",
 ]
@@ -829,7 +827,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
 dependencies = [
  "serde",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -1330,12 +1328,12 @@ dependencies = [
 
 [[package]]
 name = "icalendar"
-version = "0.10.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9ef924cc883333ecdc23b8c4a677119ec6a2db9ef7748a2ae74e77c91ef14df"
+checksum = "fb35c5cc6489141df16934450e2dfc1058201dbca89c3eba4fa8babd4ae7c845"
 dependencies = [
  "chrono",
- "uuid 0.8.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2494,7 +2492,7 @@ dependencies = [
  "thiserror",
  "time 0.3.14",
  "url",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2650,7 +2648,7 @@ dependencies = [
  "thiserror",
  "tokio-test",
  "tracing",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2680,7 +2678,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-subscriber",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2691,7 +2689,7 @@ dependencies = [
  "csscolorparser",
  "icalendar",
  "serde",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2796,7 +2794,7 @@ dependencies = [
  "thiserror",
  "tokio-stream",
  "url",
- "uuid 1.1.2",
+ "uuid",
  "webpki-roots",
  "whoami",
 ]
@@ -2926,12 +2924,6 @@ checksum = "bab24d30b911b2376f3a13cc2cd443142f0c81dda04c118693e35b3835757755"
 dependencies = [
  "winapi-util",
 ]
-
-[[package]]
-name = "textwrap"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
 
 [[package]]
 name = "thiserror"
@@ -3247,15 +3239,6 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-dependencies = [
- "getrandom 0.2.7",
-]
 
 [[package]]
 name = "uuid"
