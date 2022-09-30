@@ -387,7 +387,7 @@ dependencies = [
  "thiserror",
  "time 0.3.14",
  "tokio",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -829,7 +829,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef552e6f588e446098f6ba40d89ac146c8c7b64aade83c051ee00bb5d2bc18d"
 dependencies = [
  "serde",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -1330,12 +1330,12 @@ dependencies = [
 
 [[package]]
 name = "icalendar"
-version = "0.10.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9ef924cc883333ecdc23b8c4a677119ec6a2db9ef7748a2ae74e77c91ef14df"
+checksum = "fb35c5cc6489141df16934450e2dfc1058201dbca89c3eba4fa8babd4ae7c845"
 dependencies = [
  "chrono",
- "uuid 0.8.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2494,7 +2494,7 @@ dependencies = [
  "thiserror",
  "time 0.3.14",
  "url",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2650,7 +2650,7 @@ dependencies = [
  "thiserror",
  "tokio-test",
  "tracing",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2680,7 +2680,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "tracing-subscriber",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2691,7 +2691,7 @@ dependencies = [
  "csscolorparser",
  "icalendar",
  "serde",
- "uuid 1.1.2",
+ "uuid",
 ]
 
 [[package]]
@@ -2796,7 +2796,7 @@ dependencies = [
  "thiserror",
  "tokio-stream",
  "url",
- "uuid 1.1.2",
+ "uuid",
  "webpki-roots",
  "whoami",
 ]
@@ -3247,15 +3247,6 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
-
-[[package]]
-name = "uuid"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
-dependencies = [
- "getrandom 0.2.7",
-]
 
 [[package]]
 name = "uuid"
