@@ -1,13 +1,9 @@
 use actix_web::{web, FromRequest};
 use aes_gcm_siv::{Aes256GcmSiv, Key};
 use auth1_sdk::Identity;
-use chrono::IsoWeek;
 use deadpool_redis::redis::{self, aio::ConnectionLike};
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
-use skolplattformen::schedule::{lessons_by_week, list_timetables};
-use skool_agenda::Lesson;
-use sqlx::PgPool;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -15,7 +11,7 @@ use crate::{
     credentials::Credentials,
     crypt::{decrypt_bytes, encrypt_bytes},
     error::AppError,
-    Result,
+    ApiContext, Result,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,20 +20,6 @@ pub enum Session {
 }
 
 impl Session {
-    pub async fn list_lessons(self, week: IsoWeek) -> Result<Vec<Lesson>> {
-        match self {
-            Session::Skolplattformen(session) => {
-                let client = session.try_into_client()?;
-
-                let timetable = &list_timetables(&client).await?[0];
-
-                let lessons = lessons_by_week(&client, timetable, week).await?;
-
-                Ok(lessons)
-            }
-        }
-    }
-
     pub const fn ttl(&self) -> usize {
         match self {
             Session::Skolplattformen(_) => 15 * 60,
@@ -86,19 +68,12 @@ impl FromRequest for Session {
         let req = req.clone();
 
         let ident = Identity::from_request(&req, payload);
-        let key = req
-            .app_data::<web::Data<crate::Config>>()
-            .expect("web::Data<skool::Config> missing in app_data")
-            .aes_key;
+        let ctx = web::Data::<ApiContext>::extract(&req).into_inner().unwrap();
 
         async move {
             let ident = ident.await?;
 
-            let mut redis = req
-                .app_data::<deadpool_redis::Pool>()
-                .expect("web::Data<deadpool_redis::Pool> missing in app_data")
-                .get()
-                .await?;
+            let mut redis = ctx.redis.get().await?;
 
             let cache_key = cache_key(ident.claims.sub);
 
@@ -106,7 +81,7 @@ impl FromRequest for Session {
                 .arg(&cache_key)
                 .query_async::<_, Option<Vec<u8>>>(&mut redis)
                 .await?
-                .and_then(|bytes| decrypt_bytes::<Self>(&bytes, &key).ok());
+                .and_then(|bytes| decrypt_bytes::<Self>(&bytes, ctx.aes_key()).ok());
 
             if let Some(cached) = cached {
                 debug!("found cached session");
@@ -115,16 +90,12 @@ impl FromRequest for Session {
 
             debug!("no cached session found");
 
-            let db = req
-                .app_data::<web::Data<PgPool>>()
-                .expect("web::Data<PgPool> missing in app_data")
-                .clone();
-
-            let credentials = Credentials::get(ident.claims.sub, db.as_ref(), key).await?;
+            let credentials =
+                Credentials::get(ident.claims.sub, &ctx.postgres, ctx.aes_key()).await?;
 
             let session = credentials.into_session().await?;
 
-            save_to_cache(&session, ident.claims.sub, &key, &mut redis).await?;
+            save_to_cache(&session, ident.claims.sub, ctx.aes_key(), &mut redis).await?;
 
             Ok(session)
         }
