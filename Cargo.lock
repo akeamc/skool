@@ -362,7 +362,7 @@ dependencies = [
 [[package]]
 name = "auth1-sdk"
 version = "0.1.1"
-source = "git+https://github.com/skolorna/auth1?branch=develop#c7134cfd490a21cca3feb31fe230baedf4408fcb"
+source = "git+https://github.com/skolorna/auth1?branch=develop#a3c9c93f187d921279445568e66426468a02aa4c"
 dependencies = [
  "actix-web",
  "actix-web-httpauth",
@@ -1512,7 +1512,7 @@ dependencies = [
 [[package]]
 name = "jwk"
 version = "0.1.0"
-source = "git+https://github.com/skolorna/auth1?branch=develop#c7134cfd490a21cca3feb31fe230baedf4408fcb"
+source = "git+https://github.com/skolorna/auth1?branch=develop#a3c9c93f187d921279445568e66426468a02aa4c"
 dependencies = [
  "base64",
  "der",
@@ -2405,9 +2405,9 @@ dependencies = [
 
 [[package]]
 name = "rmp-serde"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25786b0d276110195fa3d6f3f31299900cf71dfbd6c28450f3f58a0e7f7a347e"
+checksum = "c5b13be192e0220b8afb7222aa5813cb62cc269ebb5cac346ca6487681d2913e"
 dependencies = [
  "byteorder",
  "rmp",
@@ -2876,9 +2876,9 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "sqlformat"
-version = "0.1.8"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4b7922be017ee70900be125523f38bdd644f4f06a1b16e8fa5a8ee8c34bffd4"
+checksum = "f87e292b4291f154971a43c3774364e2cbcaec599d3f5bf6fa9d122885dbc38a"
 dependencies = [
  "itertools",
  "nom",
@@ -2887,9 +2887,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "788841def501aabde58d3666fcea11351ec3962e6ea75dbcd05c84a71d68bcd1"
+checksum = "9249290c05928352f71c077cc44a464d880c63f26f7534728cca008e135c0428"
 dependencies = [
  "sqlx-core",
  "sqlx-macros",
@@ -2897,9 +2897,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-core"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c21d3b5e7cadfe9ba7cdc1295f72cc556c750b4419c27c219c0693198901f8e"
+checksum = "dcbc16ddba161afc99e14d1713a453747a2b07fc097d2009f4c300ec99286105"
 dependencies = [
  "ahash",
  "atoi",
@@ -2936,7 +2936,7 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "serde_json",
- "sha-1",
+ "sha1",
  "sha2",
  "smallvec",
  "sqlformat",
@@ -2952,9 +2952,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-macros"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4adfd2df3557bddd3b91377fc7893e8fa899e9b4061737cbade4e1bb85f1b45c"
+checksum = "b850fa514dc11f2ee85be9d055c512aa866746adfacd1cb42d867d68e6a5b0d9"
 dependencies = [
  "dotenvy",
  "either",
@@ -2974,9 +2974,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx-rt"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7be52fc7c96c136cedea840ed54f7d446ff31ad670c9dea95ebcb998530971a3"
+checksum = "24c5b2d25fa654cc5f841750b8e1cdedbe21189bf9a9382ee90bfa9dd3562396"
 dependencies = [
  "once_cell",
  "tokio",
@@ -3084,18 +3084,18 @@ checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
 
 [[package]]
 name = "thiserror"
-version = "1.0.34"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c1b05ca9d106ba7d2e31a9dab4a64e7be2cce415321966ea3132c49a656e252"
+checksum = "10deb33631e3c9018b9baf9dcbbc4f737320d2b576bac10f6aefa048fa407e3e"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.34"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8f2591983642de85c921015f3f070c665a197ed69e417af436115e3a1407487"
+checksum = "982d17546b47146b28f7c22e3d08465f6b8903d0ea13c1660d9d84a6e7adcdbb"
 dependencies = [
  "proc-macro2",
  "quote",

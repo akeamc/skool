@@ -8,7 +8,7 @@ reqwest = { version = "0.11.10", features = ["cookies", "json"] }
 tracing = "0.1.29"
 reqwest_cookie_store = "0.3.0"
 cookie_store = "0.16.1"
-serde = "1.0.133"
+serde = "1.0.145"
 serde_json = "1.0.74"
 thiserror = "1.0.30"
 chrono = "0.4.23"
