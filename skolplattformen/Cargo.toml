@@ -14,8 +14,8 @@ thiserror = "1.0.30"
 chrono = "0.4.23"
 skool-agenda = { path = "../agenda" }
 chrono-tz = "0.6.1"
-uuid = { version = "0.8.2", features = ["v5"] }
-csscolorparser = { version = "0.5.0", features = ["serde"] }
+uuid = { version = "1.1.2", features = ["v5"] }
+csscolorparser = { version = "0.6.2", features = ["serde"] }
 select = "0.5.0"
 
 [dev-dependencies]
