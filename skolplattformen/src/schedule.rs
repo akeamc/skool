@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use cookie_store::{Cookie, CookieStore};
 
-use select::{document::Document, predicate::Class};
+use select::predicate::Class;
 
 use crate::{
     util::{get_doc, scrape_form},
@@ -278,7 +278,7 @@ pub async fn lessons_by_week(
             let color = guid_colors
                 .get(&lesson.guid_id)
                 .map(std::clone::Clone::clone);
-            let date = NaiveDate::from_isoywd(week.year(), week.week(), lesson.weekday()?);
+            let date = NaiveDate::from_isoywd_opt(week.year(), week.week(), lesson.weekday()?)?;
             lesson.checked_agenda_lesson(date, color)
         })
         .collect::<Vec<_>>();
@@ -397,7 +397,7 @@ async fn login(username: &str, password: &str, client: &Client) -> Result<(), Au
     )
     .await?;
 
-    let mut form_body = scrape_form(&doc).ok_or(AuthError::ScrapingFailed {
+    let mut form_body = scrape_form(doc).ok_or(AuthError::ScrapingFailed {
         details: "no login form found".into(),
     })?;
 
@@ -405,17 +405,17 @@ async fn login(username: &str, password: &str, client: &Client) -> Result<(), Au
     form_body.insert("password".to_owned(), password.to_owned());
     form_body.insert("submit".to_owned(), String::new());
 
-    let res = client
+    let html = client
         .post("https://login001.stockholm.se/siteminderagent/forms/login.fcc")
         .form(&form_body)
         .send()
+        .await?
+        .text()
         .await?;
 
-    let form_body = scrape_form(&Document::from(res.text().await?.as_str())).ok_or(
-        AuthError::ScrapingFailed {
-            details: "no sso request form found".into(),
-        },
-    )?;
+    let form_body = scrape_form(html.as_str()).ok_or(AuthError::ScrapingFailed {
+        details: "no sso request form found".into(),
+    })?;
 
     let res = client
         .post("https://login001.stockholm.se/affwebservices/public/saml2sso")
@@ -424,15 +424,13 @@ async fn login(username: &str, password: &str, client: &Client) -> Result<(), Au
         .await?;
 
     if res.status() == StatusCode::BAD_REQUEST {
-        debug!("bad credentials :(");
+        debug!("bad credentials");
         return Err(AuthError::BadCredentials);
     }
 
-    let form_body = scrape_form(&Document::from(res.text().await?.as_str())).ok_or(
-        AuthError::ScrapingFailed {
-            details: "no sso response form found".into(),
-        },
-    )?;
+    let form_body = scrape_form(res.text().await?.as_str()).ok_or(AuthError::ScrapingFailed {
+        details: "no sso response form found".into(),
+    })?;
 
     client
         .post("https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/response")

@@ -6,7 +6,7 @@
     clippy::pedantic
 )]
 pub mod schedule;
-pub mod util;
+mod util;
 
 /// User agent used in this crate.
 pub const USER_AGENT: &str =

@@ -6,6 +6,7 @@ use clap::Parser;
 use dotenv::dotenv;
 use skool::{routes, ApiContext, Config};
 use sqlx::postgres::PgPoolOptions;
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -20,7 +21,10 @@ async fn main() -> std::io::Result<()> {
         ..Default::default()
     });
 
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_filter(EnvFilter::from_default_env()))
+        .with(sentry_tracing::layer())
+        .init();
 
     let key_store = KeyStore::default();
 
