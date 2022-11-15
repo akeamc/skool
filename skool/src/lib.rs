@@ -9,6 +9,8 @@ pub mod crypt;
 pub mod error;
 pub mod routes;
 pub mod session;
+pub mod share;
+mod util;
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 

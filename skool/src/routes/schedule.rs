@@ -2,47 +2,35 @@ use actix_web::{
     http::header::{CacheControl, CacheDirective},
     web, HttpResponse,
 };
-use chrono::{Datelike, IsoWeek, NaiveDate, Weekday};
 
 use serde::Deserialize;
 
-use ::skolplattformen::schedule::lessons_by_week;
+use skolplattformen::schedule::lessons_by_week;
 use skolplattformen::schedule::list_timetables;
 use skool_agenda::Lesson;
 use tracing::{error, instrument};
 
-use crate::{error::AppError, session::Session, Result};
+use crate::{error::AppError, session::Session, util::IsoWeek, Result};
 
 #[derive(Debug, Deserialize)]
 struct ScheduleQuery {
-    year: i32,
-    week: u32,
-}
-
-impl ScheduleQuery {
-    pub fn iso_week(&self) -> Option<IsoWeek> {
-        NaiveDate::from_isoywd_opt(self.year, self.week, Weekday::Mon).map(|d| d.iso_week())
-    }
+    #[serde(flatten)]
+    week: IsoWeek,
 }
 
 #[instrument(skip(session))]
 async fn schedule(query: web::Query<ScheduleQuery>, session: Session) -> Result<HttpResponse> {
-    let week = query
-        .iso_week()
-        .ok_or_else(|| AppError::BadRequest("invalid week".to_owned()))?;
-
-    let lessons = list_lessons(session, week).await?;
+    let lessons = list_lessons(session, query.week.0).await?;
 
     Ok(HttpResponse::Ok()
         .insert_header(CacheControl(vec![
             CacheDirective::Private,
             CacheDirective::MaxAge(3600),
-            CacheDirective::Extension("stale-while-revalidate".into(), Some("604800".into())),
         ]))
         .json(lessons))
 }
 
-async fn list_lessons(session: Session, week: IsoWeek) -> Result<Vec<Lesson>> {
+async fn list_lessons(session: Session, week: chrono::IsoWeek) -> Result<Vec<Lesson>> {
     match session {
         Session::Skolplattformen(session) => {
             let client = session.try_into_client()?;

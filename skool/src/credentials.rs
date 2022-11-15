@@ -9,24 +9,12 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgExecutor;
 use tracing::error;
 
-use crate::{crypt::decrypt_bytes, error::AppError, session::Session, ApiContext, Result};
+use crate::{crypt::decrypt_bytes, error::AppError, ApiContext, Result};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "service", rename_all = "snake_case")]
 pub enum Kind {
     Skolplattformen { username: String, password: String },
-}
-
-impl Kind {
-    pub async fn into_session(self) -> Result<Session> {
-        match self {
-            Kind::Skolplattformen { username, password } => {
-                let session =
-                    skolplattformen::schedule::start_session(&username, &password).await?;
-                Ok(Session::Skolplattformen(session))
-            }
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -71,10 +59,6 @@ impl From<Credentials> for PublicCredentials {
 }
 
 impl Credentials {
-    pub async fn into_session(self) -> Result<Session> {
-        self.kind.into_session().await
-    }
-
     pub async fn get(user: Uuid, db: impl PgExecutor<'_>, key: &Key<Aes256GcmSiv>) -> Result<Self> {
         let record = sqlx::query!(
             "SELECT updated_at, data FROM credentials WHERE uid = $1",
