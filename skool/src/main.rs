@@ -9,7 +9,7 @@ use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     let config = Config::parse();
 
@@ -31,17 +31,12 @@ async fn main() -> std::io::Result<()> {
     let db = PgPoolOptions::new()
         .max_connections(10)
         .connect(&config.database_url)
-        .await
-        .expect("failed to connect to database");
+        .await?;
 
-    sqlx::migrate!("./migrations")
-        .run(&db)
-        .await
-        .expect("migrations failed");
+    sqlx::migrate!("./migrations").run(&db).await?;
 
     let redis = deadpool_redis::Config::from_url(&config.redis_url)
-        .create_pool(Some(deadpool_redis::Runtime::Tokio1))
-        .expect("failed to create redis pool");
+        .create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
     let ctx = web::Data::new(ApiContext {
         postgres: db,
@@ -53,7 +48,7 @@ async fn main() -> std::io::Result<()> {
         let cors = Cors::permissive();
 
         App::new()
-            .wrap(sentry_actix::Sentry::new())
+            .wrap(sentry_actix::Sentry::with_transaction())
             .wrap(cors)
             .app_data(ctx.clone())
             .app_data(key_store.clone())
@@ -61,5 +56,7 @@ async fn main() -> std::io::Result<()> {
     })
     .bind(("0.0.0.0", 8000))?
     .run()
-    .await
+    .await?;
+
+    Ok(())
 }

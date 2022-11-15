@@ -8,7 +8,7 @@ use tracing::debug;
 use uuid::Uuid;
 
 use crate::{
-    credentials::Credentials,
+    credentials::{self, Credentials},
     crypt::{decrypt_bytes, encrypt_bytes},
     error::AppError,
     ApiContext, Result,
@@ -21,8 +21,15 @@ pub enum Session {
 
 impl Session {
     pub const fn ttl(&self) -> usize {
-        match self {
-            Session::Skolplattformen(_) => 15 * 60,
+        15 * 60
+    }
+
+    pub async fn create(credentials: &credentials::Kind) -> Result<Self> {
+        match &credentials {
+            credentials::Kind::Skolplattformen { username, password } => {
+                let session = skolplattformen::schedule::start_session(username, password).await?;
+                Ok(Self::Skolplattformen(session))
+            }
         }
     }
 }
@@ -93,7 +100,7 @@ impl FromRequest for Session {
             let credentials =
                 Credentials::get(ident.claims.sub, &ctx.postgres, ctx.aes_key()).await?;
 
-            let session = credentials.into_session().await?;
+            let session = Session::create(&credentials.kind).await?;
 
             save_to_cache(&session, ident.claims.sub, ctx.aes_key(), &mut redis).await?;
 

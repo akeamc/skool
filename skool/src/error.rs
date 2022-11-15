@@ -15,10 +15,10 @@ pub enum AppError {
     InternalError,
 
     #[error("{0}")]
-    BadRequest(String),
+    BadRequest(&'static str),
 
     #[error("{0}")]
-    NotFound(String),
+    NotFound(&'static str),
 
     #[error("timetable not found")]
     TimetableNotFound,
@@ -65,7 +65,7 @@ impl ResponseError for AppError {
 impl From<AuthError> for AppError {
     fn from(e: AuthError) -> Self {
         match e {
-            AuthError::BadCredentials => Self::BadRequest("bad credentials".to_owned()),
+            AuthError::BadCredentials => Self::BadRequest("bad credentials"),
             AuthError::ReqwestError(_) => e.into(),
             AuthError::ScrapingFailed { .. } => {
                 error!("{:?}", e);

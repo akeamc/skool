@@ -8,7 +8,8 @@ use crate::{
     credentials::{self, Credentials, PublicCredentials},
     crypt::encrypt_bytes,
     error::AppError,
-    session, ApiContext, Result,
+    session::{self, Session},
+    ApiContext, Result,
 };
 
 async fn save_credentials(
@@ -18,7 +19,7 @@ async fn save_credentials(
 ) -> Result<HttpResponse> {
     let creds = creds.into_inner();
     let d = encrypt_bytes(&creds, ctx.aes_key())?;
-    let session = creds.clone().into_session().await?;
+    let session = Session::create(&creds).await?;
 
     let record = sqlx::query!(
         r#"
@@ -52,7 +53,7 @@ async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpRespo
 
     match Credentials::from_request(&req, &mut payload).await {
         Ok(c) => Ok(HttpResponse::Ok().json(PublicCredentials::from(c))),
-        Err(AppError::MissingCredentials) => Err(AppError::NotFound("no credentials set".into())),
+        Err(AppError::MissingCredentials) => Err(AppError::NotFound("no credentials set")),
         Err(e) => Err(e),
     }
 }
