@@ -5,7 +5,6 @@ use actix_web::{
 };
 use deadpool_redis::redis::RedisError;
 use reqwest::header::HeaderValue;
-use skolplattformen::schedule::AuthError;
 use thiserror::Error;
 use tracing::error;
 
@@ -62,12 +61,12 @@ impl ResponseError for AppError {
     }
 }
 
-impl From<AuthError> for AppError {
-    fn from(e: AuthError) -> Self {
+impl From<skolplattformen::Error> for AppError {
+    fn from(e: skolplattformen::Error) -> Self {
         match e {
-            AuthError::BadCredentials => Self::BadRequest("bad credentials"),
-            AuthError::ReqwestError(_) => e.into(),
-            AuthError::ScrapingFailed { .. } => {
+            skolplattformen::Error::BadCredentials => Self::BadRequest("bad credentials"),
+            skolplattformen::Error::Http(_) => e.into(),
+            skolplattformen::Error::ScrapingFailed { .. } => {
                 error!("{:?}", e);
                 Self::InternalError
             }

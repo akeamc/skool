@@ -1,3 +1,4 @@
+pub mod classes;
 pub mod credentials;
 pub mod schedule;
 
@@ -29,5 +30,6 @@ async fn get_health() -> HttpResponse {
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/health").route(web::get().to(get_health)))
         .service(web::scope("/schedule").configure(schedule::config))
-        .service(web::scope("/credentials").configure(credentials::config));
+        .service(web::scope("/credentials").configure(credentials::config))
+        .service(web::scope("/classes").configure(classes::config));
 }

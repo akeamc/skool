@@ -9,24 +9,24 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgExecutor;
 use tracing::error;
 
-use crate::{crypt::decrypt_bytes, error::AppError, ApiContext, Result};
+use crate::{class::SchoolHash, crypt::decrypt_bytes, error::AppError, ApiContext, Result};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "service", rename_all = "snake_case")]
-pub enum Kind {
+pub enum Private {
     Skolplattformen { username: String, password: String },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "service", rename_all = "snake_case")]
-pub enum PublicKind {
+pub enum Public {
     Skolplattformen { username: String },
 }
 
-impl From<Kind> for PublicKind {
-    fn from(k: Kind) -> Self {
-        match k {
-            Kind::Skolplattformen {
+impl From<Private> for Public {
+    fn from(p: Private) -> Self {
+        match p {
+            Private::Skolplattformen {
                 username,
                 password: _,
             } => Self::Skolplattformen { username },
@@ -37,46 +37,68 @@ impl From<Kind> for PublicKind {
 #[derive(Debug, Clone)]
 pub struct Credentials {
     pub updated_at: DateTime<Utc>,
-    pub kind: Kind,
+    pub class: Option<String>,
+    pub school: Option<SchoolHash>,
+    pub private: Private,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PublicCredentials {
     pub updated_at: DateTime<Utc>,
+    pub class: Option<String>,
+    pub school: Option<SchoolHash>,
     #[serde(flatten)]
-    pub kind: PublicKind,
+    pub public: Public,
 }
 
 impl From<Credentials> for PublicCredentials {
     fn from(c: Credentials) -> Self {
-        let Credentials { updated_at, kind } = c;
+        let Credentials {
+            updated_at,
+            private,
+            class,
+            school,
+        } = c;
 
         Self {
             updated_at,
-            kind: kind.into(),
+            class,
+            school,
+            public: private.into(),
         }
     }
 }
 
-impl Credentials {
-    pub async fn get(user: Uuid, db: impl PgExecutor<'_>, key: &Key<Aes256GcmSiv>) -> Result<Self> {
-        let record = sqlx::query!(
-            "SELECT updated_at, data FROM credentials WHERE uid = $1",
-            user
-        )
-        .fetch_optional(db)
-        .await?
-        .ok_or(AppError::MissingCredentials)?;
+pub async fn get(
+    user: Uuid,
+    db: impl PgExecutor<'_>,
+    key: &Key<Aes256GcmSiv>,
+) -> Result<Option<Credentials>> {
+    let record = match sqlx::query!(
+        "SELECT updated_at, data, school, class_reference FROM credentials WHERE uid = $1",
+        user
+    )
+    .fetch_optional(db)
+    .await?
+    {
+        Some(record) => record,
+        None => return Ok(None),
+    };
 
-        let kind: Kind = decrypt_bytes(&record.data, key).map_err(|e| {
-            error!("decrypt error: {e}");
-            AppError::MissingCredentials
-        })?;
+    let class = record.class_reference;
+    let school = record.school.and_then(|v| v.as_slice().try_into().ok());
 
-        Ok(Self {
+    match decrypt_bytes(&record.data, key) {
+        Ok(private) => Ok(Some(Credentials {
             updated_at: record.updated_at,
-            kind,
-        })
+            class,
+            school,
+            private,
+        })),
+        Err(e) => {
+            error!("decrypt failed: {e}");
+            Ok(None)
+        }
     }
 }
 
@@ -91,7 +113,9 @@ impl FromRequest for Credentials {
 
         async move {
             let ident = ident.await?;
-            let credentials = Self::get(ident.claims.sub, &ctx.postgres, ctx.aes_key()).await?;
+            let credentials = get(ident.claims.sub, &ctx.postgres, ctx.aes_key())
+                .await?
+                .ok_or(AppError::MissingCredentials)?;
 
             Ok(credentials)
         }

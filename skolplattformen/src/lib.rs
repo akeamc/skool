@@ -1,13 +1,37 @@
 #![doc = include_str!("../README.md")]
-#![deny(
+#![warn(
     unreachable_pub,
     missing_debug_implementations,
     missing_docs,
     clippy::pedantic
 )]
+
+mod client;
 pub mod schedule;
+mod session;
 mod util;
 
-/// User agent used in this crate.
-pub const USER_AGENT: &str =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0";
+pub use client::*;
+pub use session::*;
+
+/// An error.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    /// Bad login credentials, i.e. username and password.
+    #[error("bad credentials")]
+    BadCredentials,
+
+    /// Some HTTP request failed.
+    #[error("http error")]
+    Http(#[from] reqwest::Error),
+
+    /// The scraping failed, most likely due to some unexpected HTML.
+    #[error("scraping failed: {details}")]
+    ScrapingFailed {
+        /// Detailed error information (human readable).
+        details: String,
+    },
+}
+
+/// Skolplattformen result.
+pub type Result<T, E = Error> = core::result::Result<T, E>;
