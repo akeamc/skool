@@ -4,11 +4,12 @@ use auth1_sdk::Identity;
 use deadpool_redis::redis::{self, aio::ConnectionLike};
 use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, instrument};
 use uuid::Uuid;
 
 use crate::{
-    credentials::{self, Credentials},
+    class::SchoolHash,
+    credentials,
     crypt::{decrypt_bytes, encrypt_bytes},
     error::AppError,
     ApiContext, Result,
@@ -16,7 +17,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Session {
-    Skolplattformen(skolplattformen::schedule::Session),
+    Skolplattformen(skolplattformen::Session),
 }
 
 impl Session {
@@ -24,10 +25,10 @@ impl Session {
         15 * 60
     }
 
-    pub async fn create(credentials: &credentials::Kind) -> Result<Self> {
+    pub async fn create(credentials: &credentials::Private) -> Result<Self> {
         match &credentials {
-            credentials::Kind::Skolplattformen { username, password } => {
-                let session = skolplattformen::schedule::start_session(username, password).await?;
+            credentials::Private::Skolplattformen { username, password } => {
+                let session = skolplattformen::login(username, password).await?;
                 Ok(Self::Skolplattformen(session))
             }
         }
@@ -63,6 +64,59 @@ pub async fn purge<C: redis::aio::ConnectionLike>(conn: &mut C, user: Uuid) -> R
     Ok(())
 }
 
+#[instrument(skip(ctx))]
+pub async fn get(owner: Uuid, ctx: &ApiContext) -> Result<Option<Session>> {
+    let mut redis = ctx.redis.get().await?;
+
+    let cache_key = cache_key(owner);
+
+    let cached = redis::cmd("GET")
+        .arg(&cache_key)
+        .query_async::<_, Option<Vec<u8>>>(&mut redis)
+        .await?
+        .and_then(|bytes| decrypt_bytes::<Session>(&bytes, ctx.aes_key()).ok());
+
+    if let Some(cached) = cached {
+        debug!("found cached session");
+        return Ok(Some(cached));
+    }
+
+    debug!("no cached session found");
+
+    match credentials::get(owner, &ctx.postgres, ctx.aes_key()).await? {
+        Some(credentials) => {
+            let session = Session::create(&credentials.private).await?;
+
+            save_to_cache(&session, owner, ctx.aes_key(), &mut redis).await?;
+
+            Ok(Some(session))
+        }
+        None => Ok(None),
+    }
+}
+
+#[instrument(skip(ctx))]
+pub async fn in_class(
+    school: &SchoolHash,
+    class: &str,
+    ctx: &ApiContext,
+) -> Result<Option<Session>> {
+    let user = match sqlx::query!(
+        "SELECT uid FROM credentials WHERE school = $1 AND class_reference = $2",
+        school.as_ref(),
+        class
+    )
+    .fetch_optional(&ctx.postgres)
+    .await?
+    {
+        Some(record) => record.uid,
+        None => return Ok(None),
+    };
+
+    let session = get(user, ctx).await?.ok_or(AppError::InternalError)?;
+    Ok(Some(session))
+}
+
 impl FromRequest for Session {
     type Error = AppError;
 
@@ -79,32 +133,9 @@ impl FromRequest for Session {
 
         async move {
             let ident = ident.await?;
-
-            let mut redis = ctx.redis.get().await?;
-
-            let cache_key = cache_key(ident.claims.sub);
-
-            let cached = redis::cmd("GET")
-                .arg(&cache_key)
-                .query_async::<_, Option<Vec<u8>>>(&mut redis)
+            get(ident.claims.sub, &ctx)
                 .await?
-                .and_then(|bytes| decrypt_bytes::<Self>(&bytes, ctx.aes_key()).ok());
-
-            if let Some(cached) = cached {
-                debug!("found cached session");
-                return Ok(cached);
-            }
-
-            debug!("no cached session found");
-
-            let credentials =
-                Credentials::get(ident.claims.sub, &ctx.postgres, ctx.aes_key()).await?;
-
-            let session = Session::create(&credentials.kind).await?;
-
-            save_to_cache(&session, ident.claims.sub, ctx.aes_key(), &mut redis).await?;
-
-            Ok(session)
+                .ok_or(AppError::MissingCredentials)
         }
         .boxed_local()
     }

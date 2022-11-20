@@ -4,12 +4,14 @@ use hex::FromHexError;
 use sentry::types::Dsn;
 use sqlx::Postgres;
 
+pub mod class;
 pub mod credentials;
 pub mod crypt;
 pub mod error;
 pub mod routes;
 pub mod session;
 pub mod share;
+pub mod skolplattformen;
 mod util;
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
@@ -50,5 +52,17 @@ pub struct ApiContext {
 impl ApiContext {
     pub fn aes_key(&self) -> &Key<Aes256GcmSiv> {
         &self.config.aes_key
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum System {
+    Skolplattformen = 0,
+}
+
+impl System {
+    const fn as_u8(&self) -> u8 {
+        *self as _
     }
 }

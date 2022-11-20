@@ -1,32 +1,20 @@
 //! Abstractions that make interacting with the
 //! [Skolplattformen](https://grundskola.stockholm/skolplattformen/)-[Skola24](https://www.skola24.com/)
 //! mess just a bit more sufferable.
+
 use std::collections::HashMap;
 
 use chrono::{IsoWeek, NaiveDate, NaiveTime, TimeZone, Utc, Weekday};
 use chrono_tz::{Europe::Stockholm, Tz};
 use csscolorparser::Color;
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    Client, StatusCode,
-};
-use reqwest_cookie_store::CookieStoreMutex;
+use reqwest::header::HeaderValue;
 use select::predicate::Name;
-use serde::{Deserialize, Serialize};
+use serde::{de, ser, Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
-use thiserror::Error;
 use tracing::{debug, error, instrument, trace};
 use uuid::Uuid;
 
-use cookie_store::{Cookie, CookieStore};
-
-use select::predicate::Class;
-
-use crate::{
-    util::{get_doc, scrape_form},
-    USER_AGENT,
-};
+use crate::{client::Client, util::get_doc, Error, Result};
 
 /// A (very dumb) Skola24 timetable structure.
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,13 +45,20 @@ pub struct Timetable {
 }
 
 #[derive(Debug, Deserialize)]
+struct Validation {
+    // code: u32,
+    // message: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct ResponseWrapper<T> {
     data: T,
+    validation: Vec<Validation>,
 }
 
 /// List all timetables.
 #[instrument(skip(client))]
-pub async fn list_timetables(client: &AuthorizedClient) -> Result<Vec<Timetable>, reqwest::Error> {
+pub async fn list_timetables(client: &Client) -> Result<Vec<Timetable>> {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
@@ -93,32 +88,14 @@ pub async fn list_timetables(client: &AuthorizedClient) -> Result<Vec<Timetable>
 
     trace!(status = ?res.status());
 
-    let ResponseWrapper { data } = res.json::<ResponseWrapper<Data>>().await?;
-
-    trace!("deserialized");
-
+    let ResponseWrapper { data, .. } = res.json::<ResponseWrapper<Data>>().await?;
     let PersonalTimetablesResponse { student_timetables } = data.get_personal_timetables_response;
 
     Ok(student_timetables.unwrap_or_default())
 }
 
-/// Get a [`Timetable`] by id.
-#[instrument(skip(client))]
-pub async fn get_timetable(
-    client: &AuthorizedClient,
-    id: &str,
-) -> Result<Option<Timetable>, reqwest::Error> {
-    let timetables = list_timetables(client).await?;
-
-    Ok(timetables.into_iter().find(|t| {
-        t.timetable_id
-            .as_ref()
-            .map_or(false, |timetable_id| timetable_id == id)
-    }))
-}
-
 #[instrument(skip_all)]
-async fn get_render_key(client: &AuthorizedClient) -> Result<String, reqwest::Error> {
+async fn get_render_key(client: &Client) -> Result<String> {
     #[derive(Debug, Deserialize)]
     struct Data {
         key: String,
@@ -126,7 +103,7 @@ async fn get_render_key(client: &AuthorizedClient) -> Result<String, reqwest::Er
 
     trace!("sending request");
 
-    let ResponseWrapper { data } = client
+    let ResponseWrapper { data, .. } = client
         .0
         .post("https://fns.stockholm.se/ng/api/get/timetable/render/key")
         .json("")
@@ -219,13 +196,52 @@ struct Box {
     lesson_guids: Option<Vec<String>>,
 }
 
+/// Timetable selection.
+#[derive(Debug, Clone, Copy)]
+pub enum Selection<'a> {
+    /// Select a class by GUID.
+    Class(&'a str),
+    /// Select a student by person GUID.
+    Student(&'a str),
+}
+
+impl Serialize for Selection<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Debug, Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Map<'a> {
+            selection: &'a str,
+            selection_type: u8,
+        }
+
+        let map = match self {
+            Selection::Class(selection) => Map {
+                selection,
+                selection_type: 0,
+            },
+            Selection::Student(selection) => Map {
+                selection,
+                selection_type: 5,
+            },
+        };
+
+        map.serialize(serializer)
+    }
+}
+
 /// List lessons in a [`Timetable`] for a specific [`IsoWeek`].
-#[instrument(skip(client, timetable))]
+///
+/// `unit_guid` can be found in the [`Timetable`] struct.
+#[instrument(skip(client))]
 pub async fn lessons_by_week(
-    client: &AuthorizedClient,
-    timetable: &Timetable,
+    client: &Client,
+    unit_guid: &str,
+    selection: &Selection<'_>,
     week: IsoWeek,
-) -> Result<Vec<skool_agenda::Lesson>, reqwest::Error> {
+) -> Result<Vec<skool_agenda::Lesson>> {
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct Data {
@@ -233,30 +249,48 @@ pub async fn lessons_by_week(
         box_list: Option<Vec<Box>>,
     }
 
-    let render_key = get_render_key(client).await?;
+    #[derive(Debug, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Req<'a> {
+        render_key: &'a str,
+        host: &'a str,
+        unit_guid: &'a str,
+        width: u32,
+        height: u32,
+        #[serde(flatten)]
+        selection: &'a Selection<'a>,
+        week: u32,
+        year: i32,
+    }
+
+    let render_key = &get_render_key(client).await?;
 
     let res = client
         .0
         .post("https://fns.stockholm.se/ng/api/render/timetable")
-        .json(&json!({
-            "renderKey": render_key,
-            "host": "fns.stockholm.se".to_owned(),
-            "unitGuid": timetable.unit_guid.clone(),
-            "width": 732,
-            "height": 550,
-            "selectionType": 5,
-            "selection": timetable.person_guid.clone(),
-            "week": week.week(),
-            "year": week.year(),
-        }))
+        .json(&Req {
+            render_key,
+            host: "fns.stockholm.se",
+            unit_guid,
+            width: 732,
+            height: 550,
+            selection,
+            week: week.week(),
+            year: week.year(),
+        })
         .send()
         .await?;
 
     trace!(status = ?res.status(), content_length = res.content_length());
 
-    let ResponseWrapper { data } = res.json::<ResponseWrapper<Data>>().await?;
+    let ResponseWrapper { data, validation } = res.json::<ResponseWrapper<Data>>().await?;
 
-    trace!("deserialized");
+    if !validation.is_empty() {
+        error!(?validation, "skola24 validation error");
+        return Err(Error::ScrapingFailed {
+            details: "skola24 validation error".into(),
+        });
+    }
 
     let guid_colors: HashMap<String, Color> = data
         .box_list
@@ -288,216 +322,212 @@ pub async fn lessons_by_week(
     Ok(lessons)
 }
 
-/// An error that can occur when authorizing.
-#[derive(Debug, Error)]
-pub enum AuthError {
-    /// Bad login credentials, i.e. username and password.
-    #[error("bad credentials")]
-    BadCredentials,
-
-    /// Some HTTP request failed.
-    #[error("reqwest error")]
-    ReqwestError(#[from] reqwest::Error),
-
-    /// The scraping failed, most likely due to some unexpected HTML.
-    #[error("scraping failed: {details}")]
-    ScrapingFailed {
-        /// Detailed error information (human readable).
-        details: String,
-    },
+/// A Skola24 class.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Class {
+    /// Class GUID.
+    pub group_guid: String,
+    /// Name of the class.
+    pub group_name: String,
 }
 
-/// A wrapper around [`Client`] that prevents unauthorized [`Client`]s
-/// from accidentaly being passed to Skolplattformen functions.
-#[derive(Debug)]
-pub struct AuthorizedClient(Client);
-
-/// Skolplattformen session info.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Session {
-    /// Cookies used in this session.
-    pub cookies: Vec<Cookie<'static>>,
-
-    /// Skola24 `X-Scope` header.
-    pub scope: String,
+/// A student.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Student {
+    // pub class_name: Option<String>,
+    // pub name: Option<String>,
+    // pub name_and_class: Option<String>,
+    // pub no_longer_in_group: bool,
+    /// GUID of the student.
+    pub person_guid: String,
 }
 
-impl Session {
-    /// Construct an [`AuthorizedClient`] from this session.
-    ///
-    /// # Errors
-    ///
-    /// This function returns an error if the [`Session`]s `scope` for
-    /// some reason is an invalid header value, or if the [`Client`]
-    /// fails to build.
-    #[allow(clippy::missing_panics_doc)]
-    #[instrument]
-    pub fn try_into_client(self) -> Result<AuthorizedClient, AuthError> {
-        // the only way from_cookies() can be Err is if the iterator yields an Err, so we're safe
-        let cookie_store =
-            CookieStore::from_cookies(self.cookies.into_iter().map(Ok::<_, ()>), true).unwrap();
-        let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
+/// Available filters.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Filters {
+    /// Classes.
+    pub classes: Vec<Class>,
+    // courses: _,
+    // groups: _,
+    // periods: _,
+    // rooms: _,
+    /// Students.
+    pub students: Vec<Student>,
+    // subjects: _,
+    // teachers: _,
+}
 
-        let mut headers = HeaderMap::new();
-
-        let scope_header =
-            HeaderValue::from_str(&self.scope).map_err(|_| AuthError::ScrapingFailed {
-                details: format!("invalid header value \"{}\"", self.scope),
-            })?;
-
-        headers.insert("X-Scope", scope_header);
-
-        let client = Client::builder()
-            .cookie_provider(cookie_store)
-            .user_agent(USER_AGENT)
-            .default_headers(headers)
-            .build()?;
-
-        Ok(AuthorizedClient(client))
+/// Get the available filters ("selection" in Skola24 terms).
+///
+/// # Errors
+///
+/// Returns an error if the RPC fails.
+pub async fn available_filters(client: &Client, unit_guid: &str) -> Result<Filters> {
+    #[derive(Debug, Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Req<'a> {
+        host_name: &'a str,
+        unit_guid: &'a str,
+        filters: FiltersReq,
     }
-}
 
-#[instrument(skip(password, client))]
-async fn login(username: &str, password: &str, client: &Client) -> Result<(), AuthError> {
-    trace!("GETting login page");
+    #[derive(Debug, Serialize)]
+    #[allow(clippy::struct_excessive_bools)]
+    struct FiltersReq {
+        class: bool,
+        course: bool,
+        group: bool,
+        period: bool,
+        room: bool,
+        student: bool,
+        subject: bool,
+        teacher: bool,
+    }
 
-    let doc = get_doc(client, "https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/authenticate?customer=https://login001.stockholm.se&targetsystem=TimetableViewer").await?;
-
-    let student_href = doc
-        .find(Class("navBtn"))
-        .find(|e| e.inner_html() == "Elever")
-        .and_then(|e| e.attr("href"))
-        .ok_or(AuthError::ScrapingFailed {
-            details: "no student login button found".into(),
-        })?;
-
-    let student_login_url = format!(
-        "https://login001.stockholm.se/siteminderagent/forms/{}",
-        student_href
-    );
-
-    trace!(student_login_url = student_login_url.as_str());
-
-    let student_doc = get_doc(client, &student_login_url).await?;
-
-    let username_password_href = student_doc
-        .find(Class("beta"))
-        .next()
-        .and_then(|e| e.attr("href"))
-        .ok_or(AuthError::ScrapingFailed {
-            details: "no username-password option found".into(),
-        })?;
-
-    let doc = get_doc(
-        client,
-        format!(
-            "https://login001.stockholm.se/siteminderagent/forms/{}",
-            username_password_href
-        ),
-    )
-    .await?;
-
-    let mut form_body = scrape_form(doc).ok_or(AuthError::ScrapingFailed {
-        details: "no login form found".into(),
-    })?;
-
-    form_body.insert("user".to_owned(), username.to_owned());
-    form_body.insert("password".to_owned(), password.to_owned());
-    form_body.insert("submit".to_owned(), String::new());
-
-    let html = client
-        .post("https://login001.stockholm.se/siteminderagent/forms/login.fcc")
-        .form(&form_body)
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    let form_body = scrape_form(html.as_str()).ok_or(AuthError::ScrapingFailed {
-        details: "no sso request form found".into(),
-    })?;
+    impl Default for FiltersReq {
+        fn default() -> Self {
+            Self {
+                class: true,
+                course: true,
+                group: true,
+                period: true,
+                room: true,
+                student: true,
+                subject: true,
+                teacher: true,
+            }
+        }
+    }
 
     let res = client
-        .post("https://login001.stockholm.se/affwebservices/public/saml2sso")
-        .form(&form_body)
+        .0
+        .post("https://fns.stockholm.se/ng/api/get/timetable/selection")
+        .json(&Req {
+            host_name: "fns.stockholm.se",
+            unit_guid,
+            filters: FiltersReq::default(),
+        })
         .send()
+        .await?
+        .json::<ResponseWrapper<_>>()
         .await?;
 
-    if res.status() == StatusCode::BAD_REQUEST {
-        debug!("bad credentials");
-        return Err(AuthError::BadCredentials);
-    }
-
-    let form_body = scrape_form(res.text().await?.as_str()).ok_or(AuthError::ScrapingFailed {
-        details: "no sso response form found".into(),
-    })?;
-
-    client
-        .post("https://fnsservicesso1.stockholm.se/sso-ng/saml-2.0/response")
-        .form(&form_body)
-        .send()
-        .await?;
-
-    Ok(())
+    Ok(res.data)
 }
 
-/// Start a session.
-///
-/// ```
-/// # dotenv::dotenv().ok();
-/// # let username = std::env::var("SKOLPLATTFORMEN_TEST_USERNAME").expect("SKOLPLATTFORMEN_TEST_USERNAME not set");
-/// # let password = std::env::var("SKOLPLATTFORMEN_TEST_PASSWORD").expect("SKOLPLATTFORMEN_TEST_PASSWORD not set");
-/// #
-/// # tokio_test::block_on(async {
-/// let session = skolplattformen::schedule::start_session(&username, &password).await.unwrap();
-///
-/// assert!(session.cookies.len() > 0);
-/// # })
-/// ```
-#[instrument(skip(password))]
-pub async fn start_session(username: &str, password: &str) -> Result<Session, AuthError> {
-    let cookie_store = Arc::new(CookieStoreMutex::new(CookieStore::default()));
+/// Skola24 Scope.
+#[derive(Debug)]
+pub struct Scope(HeaderValue);
 
-    let client = Client::builder()
-        .cookie_provider(cookie_store.clone())
-        .user_agent(USER_AGENT)
-        .build()?;
+impl Scope {
+    /// Get the inner [`HeaderValue`].
+    pub fn into_inner(self) -> HeaderValue {
+        self.0
+    }
+}
 
-    login(username, password, &client).await?;
-    let scope = get_scope(&client).await?;
+impl Serialize for Scope {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.0.to_str().map_err(ser::Error::custom)?;
+        s.serialize(serializer)
+    }
+}
 
-    drop(client);
-
-    let lock = Arc::try_unwrap(cookie_store).expect("lock still has multiple owners");
-    let cookie_store = lock.into_inner().expect("mutex cannot be locked");
-    let cookies = cookie_store
-        .iter_any()
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-
-    debug!("got {} cookies", cookies.len());
-
-    Ok(Session { cookies, scope })
+impl<'de> Deserialize<'de> for Scope {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        s.parse().map_err(de::Error::custom).map(Self)
+    }
 }
 
 #[instrument(skip_all)]
-async fn get_scope(client: &Client) -> Result<String, AuthError> {
+pub(crate) async fn get_scope(client: &reqwest::Client) -> Result<Scope, Error> {
     let doc = get_doc(
         client,
         "https://fns.stockholm.se/ng/timetable/timetable-viewer/fns.stockholm.se/",
     )
     .await?;
 
-    let scope = doc
+    let scope: HeaderValue = doc
         .find(Name("nova-widget"))
         .next()
         .and_then(|e| e.attr("scope"))
-        .ok_or(AuthError::ScrapingFailed {
+        .ok_or(Error::ScrapingFailed {
             details: "no scope found".into(),
         })?
-        .to_owned();
+        .parse()
+        .map_err(|_| Error::ScrapingFailed {
+            details: "invalid characters in `Scope`".into(),
+        })?;
 
-    debug!(scope = scope.as_str());
+    debug!(?scope);
 
-    Ok(scope)
+    Ok(Scope(scope))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    use async_once_cell::OnceCell;
+    use chrono::{Datelike, NaiveDate};
+
+    use crate::client::Client;
+
+    use super::{lessons_by_week, Selection};
+
+    async fn client() -> Client {
+        static CLIENT: OnceCell<Client> = OnceCell::new();
+
+        CLIENT
+            .get_or_init(async move {
+                dotenv::dotenv();
+                let username = env::var("SKOLPLATTFORMEN_TEST_USERNAME")
+                    .expect("SKOLPLATTFORMEN_TEST_USERNAME not set");
+                let password = env::var("SKOLPLATTFORMEN_TEST_PASSWORD")
+                    .expect("SKOLPLATTFORMEN_TEST_PASSWORD not set");
+                let session = crate::session::login(&username, &password).await.unwrap();
+                Client::new(session).unwrap()
+            })
+            .await
+            .clone()
+    }
+
+    #[tokio::test]
+    async fn selection() {
+        let client = client().await;
+        let timetables = super::list_timetables(&client).await.unwrap();
+        let filters = super::available_filters(&client, &timetables[0].unit_guid)
+            .await
+            .unwrap();
+
+        assert!(!filters.classes.is_empty());
+        assert!(!filters.students.is_empty());
+    }
+
+    #[tokio::test]
+    async fn lessons() {
+        let client = client().await;
+        let mut timetables = super::list_timetables(&client).await.unwrap();
+        let timetable = timetables.pop().unwrap();
+        let lessons = lessons_by_week(
+            &client,
+            &timetable.unit_guid,
+            &Selection::Student(&timetable.person_guid),
+            NaiveDate::from_ymd_opt(2022, 11, 17).unwrap().iso_week(),
+        )
+        .await
+        .unwrap();
+
+        assert!(!lessons.is_empty());
+    }
 }

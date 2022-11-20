@@ -3,8 +3,10 @@ use actix_web::{
     FromRequest, HttpRequest, HttpResponse,
 };
 use auth1_sdk::Identity;
+use tracing::error;
 
 use crate::{
+    class,
     credentials::{self, Credentials, PublicCredentials},
     crypt::encrypt_bytes,
     error::AppError,
@@ -14,12 +16,13 @@ use crate::{
 
 async fn save_credentials(
     identity: Identity,
-    creds: web::Json<credentials::Kind>,
+    creds: web::Json<credentials::Private>,
     ctx: web::Data<ApiContext>,
 ) -> Result<HttpResponse> {
     let creds = creds.into_inner();
     let d = encrypt_bytes(&creds, ctx.aes_key())?;
     let session = Session::create(&creds).await?;
+    let mut tx = ctx.postgres.begin().await?;
 
     let record = sqlx::query!(
         r#"
@@ -31,18 +34,27 @@ async fn save_credentials(
         identity.claims.sub,
         d,
     )
-    .fetch_one(&ctx.postgres)
+    .fetch_one(&mut tx)
     .await?;
 
     let mut redis = ctx.redis.get().await?;
-
     session::save_to_cache(&session, identity.claims.sub, ctx.aes_key(), &mut redis).await?;
 
-    session::purge(&mut redis, identity.claims.sub).await?;
+    let (school, class) = class::from_session(session).await.map_or_else(
+        |e| {
+            error!(error = %e, "snoop failed");
+            (None, None)
+        },
+        |c| (Some(c.school), Some(c.reference)),
+    );
+
+    tx.commit().await?;
 
     let creds = PublicCredentials {
-        kind: creds.into(),
+        public: creds.into(),
         updated_at: record.updated_at,
+        school,
+        class,
     };
 
     Ok(HttpResponse::Created().json(creds))
