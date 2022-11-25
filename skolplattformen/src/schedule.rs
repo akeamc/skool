@@ -490,7 +490,7 @@ mod tests {
 
         CLIENT
             .get_or_init(async move {
-                dotenv::dotenv();
+                let _ = dotenv::dotenv();
                 let username = env::var("SKOLPLATTFORMEN_TEST_USERNAME")
                     .expect("SKOLPLATTFORMEN_TEST_USERNAME not set");
                 let password = env::var("SKOLPLATTFORMEN_TEST_PASSWORD")
