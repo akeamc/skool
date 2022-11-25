@@ -1,11 +1,11 @@
 use actix_web::{
     http::header::{CacheControl, CacheDirective},
-    web, HttpResponse,
+    web, FromRequest, HttpRequest, HttpResponse,
 };
 
 use serde::{de, Deserialize};
 
-use skolplattformen::schedule::{lessons_by_week, Selection};
+use skolplattformen::schedule::lessons_by_week;
 use skool_agenda::Lesson;
 use tracing::instrument;
 
@@ -13,13 +13,17 @@ use crate::{
     class,
     error::AppError,
     session::{self, Session},
+    share,
     util::IsoWeek,
     ApiContext, Result,
 };
 
+mod links;
+
 #[derive(Debug, Default, Deserialize)]
-enum Filter {
+enum Selection {
     Class(String),
+    OtherUser(share::Id),
     #[default]
     CurrentUser,
 }
@@ -27,7 +31,7 @@ enum Filter {
 #[derive(Debug)]
 struct Query {
     week: IsoWeek,
-    filter: Filter,
+    selection: Selection,
 }
 
 // workaround for https://github.com/serde-rs/serde/issues/1183
@@ -41,30 +45,42 @@ impl<'de> Deserialize<'de> for Query {
             year: i32,
             week: u32,
             class: Option<String>,
+            share: Option<share::Id>,
         }
 
-        let Map { year, week, class } = Map::deserialize(deserializer)?;
+        let Map {
+            year,
+            week,
+            class,
+            share,
+        } = Map::deserialize(deserializer)?;
         let week =
             IsoWeek::from_parts(year, week).ok_or_else(|| de::Error::custom("invalid iso week"))?;
 
-        let filter = match class {
-            Some(class) => Filter::Class(class),
-            None => Filter::default(),
+        let filter = match (class, share) {
+            (Some(class), None) => Selection::Class(class),
+            (None, Some(id)) => Selection::OtherUser(id),
+            (None, None) => Selection::default(),
+            _ => return Err(de::Error::custom("contradictory selection")),
         };
 
-        Ok(Self { week, filter })
+        Ok(Self {
+            week,
+            selection: filter,
+        })
     }
 }
 
-#[instrument(skip(session, ctx))]
+#[instrument(skip(ctx))]
 async fn schedule(
     query: web::Query<Query>,
-    session: Session,
+    req: HttpRequest,
     ctx: web::Data<ApiContext>,
 ) -> Result<HttpResponse> {
     let query = query.into_inner();
-    let lessons = match &query.filter {
-        Filter::Class(class) => {
+    let lessons = match &query.selection {
+        Selection::Class(class) => {
+            let session = Session::extract(&req).await?;
             let school = class::from_session(session).await?.school;
             let session = session::in_class(&school, class, &ctx)
                 .await?
@@ -72,7 +88,11 @@ async fn schedule(
 
             list_lessons(session, query).await?
         }
-        Filter::CurrentUser => list_lessons(session, query).await?,
+        Selection::OtherUser(link) => share::list_lessons(link, query.week.0, &ctx).await?,
+        Selection::CurrentUser => {
+            let session = Session::extract(&req).await?;
+            list_lessons(session, query).await?
+        }
     };
 
     Ok(HttpResponse::Ok()
@@ -88,9 +108,12 @@ async fn list_lessons(session: Session, query: Query) -> Result<Vec<Lesson>> {
         Session::Skolplattformen(session) => {
             let client = skolplattformen::Client::new(session)?;
             let timetable = crate::skolplattformen::single_timetable(&client).await?;
-            let selection = match query.filter {
-                Filter::Class(ref class) => Selection::Class(class),
-                Filter::CurrentUser => Selection::Student(&timetable.person_guid),
+            let selection = match query.selection {
+                Selection::Class(ref class) => skolplattformen::schedule::Selection::Class(class),
+                Selection::CurrentUser => {
+                    skolplattformen::schedule::Selection::Student(&timetable.person_guid)
+                }
+                Selection::OtherUser(_) => unreachable!(),
             };
             let lessons =
                 lessons_by_week(&client, &timetable.unit_guid, &selection, query.week.0).await?;
@@ -101,5 +124,6 @@ async fn list_lessons(session: Session, query: Query) -> Result<Vec<Lesson>> {
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("").route(web::get().to(schedule)));
+    cfg.service(web::scope("/links").configure(links::config))
+        .service(web::resource("").route(web::get().to(schedule)));
 }

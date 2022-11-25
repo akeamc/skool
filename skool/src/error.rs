@@ -25,8 +25,8 @@ pub enum AppError {
     #[error("missing credentials")]
     MissingCredentials,
 
-    #[error("invalid token")]
-    InvalidToken,
+    #[error("invalid share link")]
+    InvalidShareLink,
 
     #[error("{0}")]
     Auth(#[from] auth1_sdk::actix::FromRequestError),
@@ -40,7 +40,7 @@ impl ResponseError for AppError {
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::TimetableNotFound => StatusCode::NOT_FOUND,
             AppError::MissingCredentials => StatusCode::UNAUTHORIZED,
-            AppError::InvalidToken => StatusCode::BAD_REQUEST,
+            AppError::InvalidShareLink => StatusCode::UNAUTHORIZED,
             Self::Auth(e) => e.status_code(),
         }
     }

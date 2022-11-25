@@ -1,30 +1,33 @@
 {
   "db": "PostgreSQL",
-  "2551ed7669fb14e96360b0c93037b4e7252244d1b5e4dcefeae13f086e9e1d95": {
+  "3374b3f00e9d776d7ff9f17a2deecda048dbaa962b322914f79653c51769da6b": {
     "describe": {
-      "columns": [
-        {
-          "name": "updated_at",
-          "ordinal": 0,
-          "type_info": "Timestamptz"
-        },
-        {
-          "name": "data",
-          "ordinal": 1,
-          "type_info": "Bytea"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
+      "columns": [],
+      "nullable": [],
       "parameters": {
         "Left": [
-          "Uuid"
+          "Uuid",
+          "Bytea",
+          "Timestamptz",
+          "DateRange"
         ]
       }
     },
-    "query": "SELECT updated_at, data FROM credentials WHERE uid = $1"
+    "query": "INSERT INTO links (owner, id, expires_at, range) VALUES ($1, $2, $3, $4)"
+  },
+  "39d578dd890fd5374b6deab968cd57c6f2529f38f71361cced94c70e3f4b9fc9": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea",
+          "Varchar",
+          "Varchar"
+        ]
+      }
+    },
+    "query": "\n          INSERT INTO classes (school, reference, name) VALUES ($1, $2, $3)\n          ON CONFLICT ON CONSTRAINT classes_pkey DO UPDATE\n            SET name = EXCLUDED.name\n        "
   },
   "3dc55c01e59234a378dddb408217fb3f491c79635728c20ebe06623b51d65aea": {
     "describe": {
@@ -37,6 +40,40 @@
       }
     },
     "query": "DELETE FROM credentials WHERE uid = $1"
+  },
+  "81da8bdd61ee4d9adb34ba0bc07939be0a0cc5f612ac3b22e5ff578c49ecfe05": {
+    "describe": {
+      "columns": [
+        {
+          "name": "uid",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea",
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT uid FROM credentials WHERE school = $1 AND class_reference = $2"
+  },
+  "84bd42b5264e9601bae9de7ffa290344109b8a29f8317b97c6fd7a2894927e3a": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "DELETE FROM links WHERE owner = $1 AND id = $2"
   },
   "a6281e276b1ce8af55308130c08a0eb5524ebd5ffd3831cafa40ad55613a1d54": {
     "describe": {
@@ -58,5 +95,89 @@
       }
     },
     "query": "\n          INSERT INTO credentials (uid, data, updated_at) VALUES ($1, $2, DEFAULT)\n          ON CONFLICT (uid) DO UPDATE\n            SET (data, updated_at) = (EXCLUDED.data, EXCLUDED.updated_at)\n          RETURNING updated_at\n        "
+  },
+  "b3b68c4a4b054eb15870c812db875517abc6e8f1f0e0ca9cdb0514cbc6fd7e7c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "owner",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "expires_at",
+          "ordinal": 1,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "range",
+          "ordinal": 2,
+          "type_info": "DateRange"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "SELECT owner, expires_at, range FROM links WHERE id = $1"
+  },
+  "bbdf0e0c1e044351568baadeffb6e360d8826d4b672b29f2d0cf612e2d45b367": {
+    "describe": {
+      "columns": [
+        {
+          "name": "updated_at",
+          "ordinal": 0,
+          "type_info": "Timestamptz"
+        },
+        {
+          "name": "data",
+          "ordinal": 1,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "school",
+          "ordinal": 2,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "class_reference",
+          "ordinal": 3,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT updated_at, data, school, class_reference FROM credentials WHERE uid = $1"
+  },
+  "edf803d5ff1df0cde88a2bd5803ce0ab4532ffec9d403fe79c7f428646aa67dd": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea",
+          "Varchar",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "UPDATE credentials SET (school, class_reference) = ($1, $2) WHERE uid = $3"
   }
 }
