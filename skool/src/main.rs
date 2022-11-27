@@ -4,7 +4,10 @@ use actix_web::{web, App, HttpServer};
 use auth1_sdk::KeyStore;
 use clap::Parser;
 use dotenv::dotenv;
-use skool::{routes, ApiContext, Config};
+use skool::{
+    routes::{self, get_health},
+    ApiContext, Config,
+};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Layer};
 
@@ -48,8 +51,9 @@ async fn main() -> anyhow::Result<()> {
         let cors = Cors::permissive();
 
         App::new()
-            .wrap(sentry_actix::Sentry::with_transaction())
             .wrap(cors)
+            .service(web::resource("/health").route(web::get().to(get_health)))
+            .wrap(sentry_actix::Sentry::with_transaction())
             .app_data(ctx.clone())
             .app_data(key_store.clone())
             .configure(routes::config)

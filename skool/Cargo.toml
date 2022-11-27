@@ -1,6 +1,6 @@
 [package]
 name = "skool"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 
 [dependencies]
@@ -27,7 +27,7 @@ hex = { version = "0.4.3", features = ["serde"] }
 rand = "0.8.5"
 sentry = "0.28.0"
 sentry-actix = "0.28.0"
-deadpool-redis = "0.10.2"
+deadpool-redis = "0.11.0"
 sentry-tracing = "0.28.0"
 anyhow = "1.0.66"
 blake3 = "1.3.1"
