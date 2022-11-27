@@ -21,15 +21,14 @@ impl Default for Health {
     }
 }
 
-async fn get_health() -> HttpResponse {
+pub async fn get_health() -> HttpResponse {
     HttpResponse::Ok()
         .insert_header(CacheControl(vec![CacheDirective::NoCache]))
         .json(Health::default())
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/health").route(web::get().to(get_health)))
-        .service(web::scope("/schedule").configure(schedule::config))
+    cfg.service(web::scope("/schedule").configure(schedule::config))
         .service(web::scope("/credentials").configure(credentials::config))
         .service(web::scope("/classes").configure(classes::config));
 }
