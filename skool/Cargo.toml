@@ -26,7 +26,7 @@ rmp-serde = "1.1.1"
 hex = { version = "0.4.3", features = ["serde"] }
 rand = "0.8.5"
 sentry = "0.28.0"
-sentry-actix = "0.28.0"
+sentry-actix = "0.29.0"
 deadpool-redis = "0.11.0"
 sentry-tracing = "0.28.0"
 anyhow = "1.0.66"
