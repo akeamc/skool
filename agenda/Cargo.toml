@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
 csscolorparser = { version = "0.6.2", features = ["serde"] }
-icalendar = "0.13.1"
+icalendar = "0.14.1"
 serde = { version = "1.0.133", features = ["derive"] }
 uuid = { version = "1.1.2", features = ["serde"] }
 
