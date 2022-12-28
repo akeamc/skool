@@ -3,11 +3,11 @@ use aes_gcm_siv::{Aes256GcmSiv, Key};
 use auth1_sdk::Identity;
 use chrono::{DateTime, Utc};
 use futures::{future::LocalBoxFuture, FutureExt};
-use sentry::types::Uuid;
 use serde::{Deserialize, Serialize};
 
 use sqlx::PgExecutor;
 use tracing::error;
+use uuid::Uuid;
 
 use crate::{class::SchoolHash, crypt::decrypt_bytes, error::AppError, ApiContext, Result};
 
