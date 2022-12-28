@@ -1,7 +1,6 @@
 use aes_gcm_siv::{Aes256GcmSiv, Key};
 use error::AppError;
 use hex::FromHexError;
-use sentry::types::Dsn;
 use sqlx::Postgres;
 
 pub mod class;
@@ -30,11 +29,8 @@ pub struct Config {
     #[clap(env, parse(try_from_str = parse_hex_key))]
     pub aes_key: Key<Aes256GcmSiv>,
 
-    #[clap(env)]
-    pub sentry_dsn: Option<Dsn>,
-
-    #[clap(env)]
-    pub sentry_environment: Option<String>,
+    #[clap(long, env, default_value = "http://localhost:4317")]
+    pub otlp_endpoint: String,
 }
 
 fn parse_hex_key(s: &str) -> Result<Key<Aes256GcmSiv>, FromHexError> {
