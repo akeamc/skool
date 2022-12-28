@@ -1,7 +1,6 @@
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 
-use actix_web_opentelemetry::RequestTracing;
 use auth1_sdk::KeyStore;
 use clap::Parser;
 use dotenv::dotenv;
@@ -79,7 +78,6 @@ async fn main() -> anyhow::Result<()> {
         let cors = Cors::permissive();
 
         App::new()
-            .wrap(RequestTracing::new())
             .wrap(cors)
             .app_data(ctx.clone())
             .app_data(key_store.clone())
