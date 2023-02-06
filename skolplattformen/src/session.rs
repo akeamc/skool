@@ -36,10 +36,8 @@ async fn login_client(username: &str, password: &str, client: &reqwest::Client) 
             details: "no student login button found".into(),
         })?;
 
-    let student_login_url = format!(
-        "https://login001.stockholm.se/siteminderagent/forms/{}",
-        student_href
-    );
+    let student_login_url =
+        format!("https://login001.stockholm.se/siteminderagent/forms/{student_href}");
 
     trace!(student_login_url = student_login_url.as_str());
 
@@ -55,10 +53,7 @@ async fn login_client(username: &str, password: &str, client: &reqwest::Client) 
 
     let doc = get_doc(
         client,
-        format!(
-            "https://login001.stockholm.se/siteminderagent/forms/{}",
-            username_password_href
-        ),
+        format!("https://login001.stockholm.se/siteminderagent/forms/{username_password_href}"),
     )
     .await?;
 

@@ -5,7 +5,7 @@ use auth1_sdk::KeyStore;
 use clap::Parser;
 use dotenv::dotenv;
 use opentelemetry::{
-    sdk::{trace, Resource},
+    sdk::{propagation::TraceContextPropagator, trace, Resource},
     KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;
@@ -15,6 +15,8 @@ use tracing::metadata::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 pub fn init_telemetry(otlp_endpoint: impl Into<String>) -> anyhow::Result<()> {
+    opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
+
     let exporter = opentelemetry_otlp::new_exporter()
         .tonic()
         .with_endpoint(otlp_endpoint);
