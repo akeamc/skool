@@ -1,6 +1,6 @@
 [package]
 name = "skool"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 
 [dependencies]
@@ -18,7 +18,7 @@ tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
 uuid = { version = "1.1.2", features = ["v4"] }
 skool-agenda = { path = "../agenda" }
 mime = "0.3.16"
-auth1-sdk = { git = "https://github.com/skolorna/auth1", branch = "develop", version = "0.1.2", features = ["actix"] }
+auth1-sdk = { git = "https://github.com/skolorna/auth1", features = ["actix"] }
 sqlx = { version = "0.6.2", features = ["runtime-actix-rustls", "postgres", "uuid", "chrono", "offline"] }
 clap = { version = "3.2.20", features = ["derive", "env"] }
 aes-gcm-siv = "0.11.1"
