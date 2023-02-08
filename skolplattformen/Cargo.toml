@@ -9,7 +9,7 @@ tracing = "0.1.29"
 reqwest_cookie_store = "0.5.0"
 cookie_store = "0.19.0"
 serde = "1.0.145"
-serde_json = "1.0.74"
+serde_json = "1.0.93"
 thiserror = "1.0.30"
 chrono = "0.4.23"
 skool-agenda = { path = "../agenda" }
