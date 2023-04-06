@@ -134,7 +134,7 @@ async fn ical(
                     range.contains(&w.with_weekday(Weekday::Mon).unwrap())
                         && range.contains(&w.with_weekday(Weekday::Sun).unwrap())
                 })
-                .take(20);
+                .take(28);
 
             let selection = skolplattformen::schedule::Selection::Student(&timetable.person_guid);
 
