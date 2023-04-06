@@ -1512,11 +1512,12 @@ dependencies = [
 
 [[package]]
 name = "icalendar"
-version = "0.13.3"
+version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95f667625399cbff40e24172d0b3dae49ff51db305bee0facd67063b1fbdc15e"
+checksum = "4f730bf0dc0a06f7e19c4ca6b731427d741384338b60128e5d0d00aeb0b5f071"
 dependencies = [
  "chrono",
+ "iso8601",
  "uuid",
 ]
 
@@ -1581,6 +1582,15 @@ name = "ipnet"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30e22bd8629359895450b59ea7a776c850561b96a3b1d31321c1949d9e6c9146"
+
+[[package]]
+name = "iso8601"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "924e5d73ea28f59011fec52a0d12185d496a9b075d360657aed2a5707f701153"
+dependencies = [
+ "nom",
+]
 
 [[package]]
 name = "itertools"
@@ -2960,7 +2970,7 @@ dependencies = [
 
 [[package]]
 name = "skool"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "actix-cors",
  "actix-web",

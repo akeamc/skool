@@ -159,19 +159,29 @@ impl Lesson {
         let location = texts.next_back();
         let teacher = texts.next();
 
+        let start = Lesson::TZ
+            .from_local_datetime(&date.and_time(start))
+            .single()?
+            .with_timezone(&Utc);
+        let end = Lesson::TZ
+            .from_local_datetime(&date.and_time(end))
+            .single()?
+            .with_timezone(&Utc);
+
+        // guid_id is only unique within a week
+        let characteristic = [
+            &start.timestamp().to_be_bytes()[..],
+            self.guid_id.as_bytes(),
+        ]
+        .concat();
+
         Some(skool_agenda::Lesson {
-            start: Lesson::TZ
-                .from_local_datetime(&date.and_time(start))
-                .single()?
-                .with_timezone(&Utc),
-            end: Lesson::TZ
-                .from_local_datetime(&date.and_time(end))
-                .single()?
-                .with_timezone(&Utc),
+            start,
+            end,
             course,
             teacher,
             location,
-            id: Uuid::new_v5(&UUID_NAMESPACE, self.guid_id.as_bytes()),
+            id: Uuid::new_v5(&UUID_NAMESPACE, &characteristic),
             color,
         })
     }

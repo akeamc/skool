@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use chrono::{DateTime, Duration, Utc};
 
 use csscolorparser::Color;
-use icalendar::{Calendar, Component, Event};
+use icalendar::{Calendar, Component, Event, EventLike};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
