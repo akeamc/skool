@@ -1,4 +1,4 @@
-use std::ops::RangeBounds;
+use std::ops::{RangeBounds, RangeInclusive};
 
 use aes_gcm_siv::aead::OsRng;
 use chrono::{DateTime, NaiveDate, Utc, Weekday};
@@ -6,6 +6,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use skolplattformen::schedule::lessons_by_week;
 use skool_agenda::Lesson;
+use sqlx::postgres::types::PgRange;
 
 use crate::{
     error::AppError,
@@ -69,7 +70,11 @@ impl Link {
     }
 }
 
-pub async fn list_lessons(id: &Id, week: chrono::IsoWeek, ctx: &ApiContext) -> Result<Vec<Lesson>> {
+pub async fn get_session(
+    id: &Id,
+    range: Option<RangeInclusive<NaiveDate>>,
+    ctx: &ApiContext,
+) -> Result<(Session, PgRange<NaiveDate>)> {
     let record = sqlx::query!(
         "SELECT owner, expires_at, range FROM links WHERE id = $1",
         &id.0
@@ -78,11 +83,11 @@ pub async fn list_lessons(id: &Id, week: chrono::IsoWeek, ctx: &ApiContext) -> R
     .await?
     .ok_or(AppError::InvalidShareLink)?;
 
-    let start = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Mon).unwrap();
-    let end = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Sun).unwrap();
-    if !(record.range.contains(&start) && record.range.contains(&end)) {
-        return Err(AppError::InvalidShareLink);
-    };
+    if let Some(range) = range {
+        if !(record.range.contains(range.start()) && record.range.contains(range.end())) {
+            return Err(AppError::InvalidShareLink);
+        };
+    }
 
     if let Some(expires_at) = record.expires_at {
         if Utc::now() >= expires_at {
@@ -90,9 +95,18 @@ pub async fn list_lessons(id: &Id, week: chrono::IsoWeek, ctx: &ApiContext) -> R
         }
     }
 
-    let lessons = match session::get(record.owner, ctx)
+    let session = session::get(record.owner, ctx)
         .await?
-        .ok_or(AppError::InvalidShareLink)?
+        .ok_or(AppError::InvalidShareLink)?;
+
+    Ok((session, record.range))
+}
+
+pub async fn list_lessons(id: &Id, week: chrono::IsoWeek, ctx: &ApiContext) -> Result<Vec<Lesson>> {
+    let start = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Mon).unwrap();
+    let end = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Sun).unwrap();
+    
+    let lessons = match get_session(id, Some(start..=end), ctx).await?.0
     {
         Session::Skolplattformen(session) => {
             let client = skolplattformen::Client::new(session)?;

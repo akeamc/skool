@@ -3,6 +3,8 @@ use actix_web::{
     web, FromRequest, HttpRequest, HttpResponse,
 };
 
+use chrono::{Utc, Duration};
+use futures::{stream, StreamExt, TryStreamExt};
 use serde::{de, Deserialize};
 
 use skolplattformen::schedule::lessons_by_week;
@@ -103,6 +105,45 @@ async fn schedule(
         .json(lessons))
 }
 
+#[derive(Debug, serde::Serialize, Deserialize)]
+struct IcalQuery {
+    id: share::Id,
+}
+
+#[instrument(skip_all)]
+async fn ical(web::Query(query): web::Query<IcalQuery>, ctx: web::Data<ApiContext>) -> Result<HttpResponse> {
+    let first = Utc::now().date_naive() - Duration::weeks(4);
+    let (session, range) = share::get_session(&query.id, None, &ctx).await?;
+    match session {
+        Session::Skolplattformen(session) => {
+            let client = skolplattformen::Client::new(session)?;
+            let timetable = crate::skolplattformen::single_timetable(&client).await?;
+            
+            let lessons = stream::iter(first.iter_weeks())
+                .map(|date| {
+                    let selection = skolplattformen::schedule::Selection::Student(&timetable.person_guid);
+                    // let mon = 
+                    lessons_by_week(&client, &timetable.unit_guid, &selection, week)
+                })
+                .buffer_unordered(4)
+                .try_flatten()
+                .collect::<Vec<_>>()
+                .await;
+            // let lessons = lessons_by_week(
+            //     &client,
+            //     &timetable.unit_guid,
+            //     &skolplattformen::schedule::Selection::Student(&timetable.person_guid),
+            //     IsoWeek::from_date(now),
+            // )
+            // .await?;
+
+        todo!()
+        }
+    }
+
+    Ok(HttpResponse::Ok().json(query))
+}
+
 async fn list_lessons(session: Session, query: Query) -> Result<Vec<Lesson>> {
     match session {
         Session::Skolplattformen(session) => {
@@ -125,5 +166,6 @@ async fn list_lessons(session: Session, query: Query) -> Result<Vec<Lesson>> {
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::scope("/links").configure(links::config))
-        .service(web::resource("").route(web::get().to(schedule)));
+        .service(web::resource("").route(web::get().to(schedule)))
+        .service(web::resource("/ical").route(web::get().to(ical)));
 }
