@@ -105,9 +105,8 @@ pub async fn get_session(
 pub async fn list_lessons(id: &Id, week: chrono::IsoWeek, ctx: &ApiContext) -> Result<Vec<Lesson>> {
     let start = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Mon).unwrap();
     let end = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Sun).unwrap();
-    
-    let lessons = match get_session(id, Some(start..=end), ctx).await?.0
-    {
+
+    let lessons = match get_session(id, Some(start..=end), ctx).await?.0 {
         Session::Skolplattformen(session) => {
             let client = skolplattformen::Client::new(session)?;
             let timetable = crate::skolplattformen::single_timetable(&client).await?;

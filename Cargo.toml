@@ -1,2 +1,5 @@
 [workspace]
 members = ["agenda", "skolplattformen", "skool"]
+
+[workspace.dependencies]
+icalendar = { version = "0.13.1", default-features = false }

@@ -42,7 +42,7 @@ mod iso_week {
     }
 }
 
-use chrono::{Weekday, NaiveDate, Datelike};
+use chrono::{NaiveDate, Weekday};
 pub use iso_week::IsoWeek;
 
 mod range {
@@ -118,23 +118,12 @@ mod range {
 
 pub use range::Range;
 
-pub trait NaiveDateExt: Sized {
-    fn with_weekday(self, weekday: Weekday) -> Option<Self>;
-}
-
-impl NaiveDateExt for NaiveDate {
-    fn with_weekday(self, weekday: Weekday) -> Option<Self> {
-        let week = self.iso_week();
-        NaiveDate::from_isoywd_opt(week.year(), week.week(), weekday)
-    }
-}
-
 pub trait IsoWeekExt: Sized {
     fn with_weekday(self, weekday: Weekday) -> Option<NaiveDate>;
 }
 
 impl IsoWeekExt for chrono::IsoWeek {
     fn with_weekday(self, weekday: Weekday) -> Option<NaiveDate> {
-        NaiveDate::from_isoywd_opt(self.year(), self.week(), Weekday::Mon)
+        NaiveDate::from_isoywd_opt(self.year(), self.week(), weekday)
     }
 }
