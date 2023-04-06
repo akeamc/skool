@@ -1,6 +1,6 @@
 [package]
 name = "skool"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 
 [dependencies]
@@ -34,3 +34,4 @@ opentelemetry-otlp = "0.11.0"
 tracing-opentelemetry = "0.18.0"
 actix-web-opentelemetry = "0.13.0"
 opentelemetry-semantic-conventions = "0.10.0"
+icalendar = { workspace = true }

@@ -1,12 +1,17 @@
+use std::ops::RangeBounds;
+
 use actix_web::{
-    http::header::{CacheControl, CacheDirective},
+    http::header::{self, CacheControl, CacheDirective},
     web, FromRequest, HttpRequest, HttpResponse,
 };
 
+use chrono::{Datelike, Duration, Utc, Weekday};
+use futures::{stream, StreamExt, TryStreamExt};
+use icalendar::Calendar;
 use serde::{de, Deserialize};
 
 use skolplattformen::schedule::lessons_by_week;
-use skool_agenda::Lesson;
+use skool_agenda::{Lesson, LessonLike};
 use tracing::instrument;
 
 use crate::{
@@ -14,7 +19,7 @@ use crate::{
     error::AppError,
     session::{self, Session},
     share,
-    util::IsoWeek,
+    util::{IsoWeek, IsoWeekExt},
     ApiContext, Result,
 };
 
@@ -103,6 +108,51 @@ async fn schedule(
         .json(lessons))
 }
 
+#[derive(Debug, serde::Serialize, Deserialize)]
+struct IcalQuery {
+    id: share::Id,
+}
+
+#[instrument(skip_all)]
+async fn ical(
+    web::Query(query): web::Query<IcalQuery>,
+    ctx: web::Data<ApiContext>,
+) -> Result<HttpResponse> {
+    let first = Utc::now().date_naive() - Duration::weeks(4);
+    let (session, range) = share::get_session(&query.id, None, &ctx).await?;
+    let mut calendar = Calendar::new();
+
+    match session {
+        Session::Skolplattformen(session) => {
+            let client = skolplattformen::Client::new(session)?;
+            let timetable = crate::skolplattformen::single_timetable(&client).await?;
+
+            let weeks = first
+                .iter_weeks()
+                .map(|d| d.iso_week())
+                .take_while(|w| {
+                    range.contains(&w.with_weekday(Weekday::Mon).unwrap())
+                        && range.contains(&w.with_weekday(Weekday::Sun).unwrap())
+                })
+                .take(28);
+
+            let selection = skolplattformen::schedule::Selection::Student(&timetable.person_guid);
+
+            let mut lessons = stream::iter(weeks)
+                .map(|week| lessons_by_week(&client, &timetable.unit_guid, &selection, week))
+                .buffer_unordered(4);
+
+            while let Some(lessons) = lessons.try_next().await? {
+                calendar.extend(lessons.into_iter().map(|l| l.to_event()))
+            }
+        }
+    }
+
+    Ok(HttpResponse::Ok()
+        .insert_header(header::ContentType("text/calendar".parse().unwrap()))
+        .body(calendar.to_string()))
+}
+
 async fn list_lessons(session: Session, query: Query) -> Result<Vec<Lesson>> {
     match session {
         Session::Skolplattformen(session) => {
@@ -125,5 +175,6 @@ async fn list_lessons(session: Session, query: Query) -> Result<Vec<Lesson>> {
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(web::scope("/links").configure(links::config))
-        .service(web::resource("").route(web::get().to(schedule)));
+        .service(web::resource("").route(web::get().to(schedule)))
+        .service(web::resource("/ical").route(web::get().to(ical)));
 }

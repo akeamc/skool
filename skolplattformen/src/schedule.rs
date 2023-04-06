@@ -46,7 +46,7 @@ pub struct Timetable {
 
 #[derive(Debug, Deserialize)]
 struct Validation {
-    // code: u32,
+    code: u32,
     // message: String,
 }
 
@@ -287,6 +287,11 @@ pub async fn lessons_by_week(
 
     if !validation.is_empty() {
         error!(?validation, "skola24 validation error");
+
+        if validation[0].code == 3 {
+            return Ok(Vec::new()); // no lessons
+        }
+
         return Err(Error::ScrapingFailed {
             details: "skola24 validation error".into(),
         });
