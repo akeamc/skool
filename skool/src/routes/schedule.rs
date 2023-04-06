@@ -140,7 +140,7 @@ async fn ical(
 
             let mut lessons = stream::iter(weeks)
                 .map(|week| lessons_by_week(&client, &timetable.unit_guid, &selection, week))
-                .buffer_unordered(4);
+                .buffer_unordered(8);
 
             while let Some(lessons) = lessons.try_next().await? {
                 calendar.extend(lessons.into_iter().map(|l| l.to_event()))
@@ -150,6 +150,7 @@ async fn ical(
 
     Ok(HttpResponse::Ok()
         .insert_header(header::ContentType("text/calendar".parse().unwrap()))
+        .insert_header(CacheControl(vec![CacheDirective::NoCache]))
         .body(calendar.to_string()))
 }
 

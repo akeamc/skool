@@ -11,11 +11,10 @@ use crate::{
 };
 
 async fn list(identity: Identity, ctx: web::Data<ApiContext>) -> Result<HttpResponse> {
-    let links: Vec<Link> =
-        sqlx::query_as("SELECT id, expires_at, range FROM links WHERE owner = $1")
-            .bind(identity.claims.sub)
-            .fetch_all(&ctx.postgres)
-            .await?;
+    let links: Vec<Link> = sqlx::query_as("SELECT * FROM links WHERE owner = $1")
+        .bind(identity.claims.sub)
+        .fetch_all(&ctx.postgres)
+        .await?;
 
     Ok(HttpResponse::Ok().json(links))
 }

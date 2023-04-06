@@ -1,0 +1,4 @@
+ALTER TABLE
+  links
+ADD
+  COLUMN last_used TIMESTAMPTZ;

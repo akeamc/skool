@@ -59,6 +59,7 @@ pub struct Link {
     pub id: Id,
     #[sqlx(flatten)]
     pub options: Options,
+    pub last_used: Option<DateTime<Utc>>,
 }
 
 impl Link {
@@ -66,6 +67,7 @@ impl Link {
         Self {
             id: Id::new(),
             options,
+            last_used: None,
         }
     }
 }
@@ -98,6 +100,10 @@ pub async fn get_session(
     let session = session::get(record.owner, ctx)
         .await?
         .ok_or(AppError::InvalidShareLink)?;
+
+    sqlx::query!("UPDATE links SET last_used = NOW() WHERE id = $1", &id.0)
+        .execute(&ctx.postgres)
+        .await?;
 
     Ok((session, record.range))
 }
