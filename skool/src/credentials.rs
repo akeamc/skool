@@ -6,7 +6,7 @@ use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 
 use sqlx::PgExecutor;
-use tracing::error;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
 use crate::{class::SchoolHash, crypt::decrypt_bytes, error::AppError, ApiContext, Result};
@@ -69,6 +69,7 @@ impl From<Credentials> for PublicCredentials {
     }
 }
 
+#[instrument(name = "get_credentials", skip(db, key))]
 pub async fn get(
     user: Uuid,
     db: impl PgExecutor<'_>,
