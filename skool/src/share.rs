@@ -1,11 +1,7 @@
-use std::ops::{RangeBounds, RangeInclusive};
-
 use aes_gcm_siv::aead::OsRng;
-use chrono::{DateTime, NaiveDate, Utc, Weekday};
+use chrono::{DateTime, NaiveDate, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use skolplattformen::schedule::lessons_by_week;
-use skool_agenda::Lesson;
 use sqlx::postgres::types::PgRange;
 
 use crate::{
@@ -72,11 +68,7 @@ impl Link {
     }
 }
 
-pub async fn get_session(
-    id: &Id,
-    range: Option<RangeInclusive<NaiveDate>>,
-    ctx: &ApiContext,
-) -> Result<(Session, PgRange<NaiveDate>)> {
+pub async fn get_session(id: &Id, ctx: &ApiContext) -> Result<(Session, PgRange<NaiveDate>)> {
     let record = sqlx::query!(
         "SELECT owner, expires_at, range FROM links WHERE id = $1",
         &id.0
@@ -84,12 +76,6 @@ pub async fn get_session(
     .fetch_optional(&ctx.postgres)
     .await?
     .ok_or(AppError::InvalidShareLink)?;
-
-    if let Some(range) = range {
-        if !(record.range.contains(range.start()) && record.range.contains(range.end())) {
-            return Err(AppError::InvalidShareLink);
-        };
-    }
 
     if let Some(expires_at) = record.expires_at {
         if Utc::now() >= expires_at {
@@ -106,25 +92,4 @@ pub async fn get_session(
         .await?;
 
     Ok((session, record.range))
-}
-
-pub async fn list_lessons(id: &Id, week: chrono::IsoWeek, ctx: &ApiContext) -> Result<Vec<Lesson>> {
-    let start = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Mon).unwrap();
-    let end = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Sun).unwrap();
-
-    let lessons = match get_session(id, Some(start..=end), ctx).await?.0 {
-        Session::Skolplattformen(session) => {
-            let client = skolplattformen::Client::new(session)?;
-            let timetable = crate::skolplattformen::single_timetable(&client).await?;
-            lessons_by_week(
-                &client,
-                &timetable.unit_guid,
-                &skolplattformen::schedule::Selection::Student(&timetable.person_guid),
-                week,
-            )
-            .await?
-        }
-    };
-
-    Ok(lessons)
 }

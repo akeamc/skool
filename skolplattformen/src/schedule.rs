@@ -296,11 +296,12 @@ pub async fn lessons_by_week(
     let ResponseWrapper { data, validation } = res.json::<ResponseWrapper<Data>>().await?;
 
     if !validation.is_empty() {
-        error!(?validation, "skola24 validation error");
-
-        if validation[0].code == 3 {
-            return Ok(Vec::new()); // no lessons
+        if validation.len() == 1 && validation[0].code == 3 {
+            // no lessons
+            return Ok(Vec::new());
         }
+
+        error!(?validation, "skola24 validation error");
 
         return Err(Error::ScrapingFailed {
             details: "skola24 validation error".into(),
