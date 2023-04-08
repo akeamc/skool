@@ -64,7 +64,7 @@ pub async fn purge<C: redis::aio::ConnectionLike>(conn: &mut C, user: Uuid) -> R
     Ok(())
 }
 
-#[instrument(skip(ctx))]
+#[instrument(name = "get_session", skip(ctx))]
 pub async fn get(owner: Uuid, ctx: &ApiContext) -> Result<Option<Session>> {
     let mut redis = ctx.redis.get().await?;
 
