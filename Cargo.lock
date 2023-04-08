@@ -2959,7 +2959,7 @@ dependencies = [
  "aes-gcm-siv",
  "anyhow",
  "auth1-sdk",
- "base64 0.13.1",
+ "base64 0.21.0",
  "blake3",
  "chrono",
  "clap",
