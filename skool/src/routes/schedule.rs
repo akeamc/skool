@@ -48,8 +48,8 @@ impl<'de> Deserialize<'de> for Query {
     {
         #[derive(Debug, Deserialize)]
         struct Fields {
-            year: i32,
-            week: u32,
+            year: Option<i32>,
+            week: Option<u32>,
             class: Option<String>,
             share: Option<share::Id>,
         }
@@ -61,9 +61,14 @@ impl<'de> Deserialize<'de> for Query {
             share,
         } = Fields::deserialize(deserializer)?;
 
-        let week = NaiveDate::from_isoywd_opt(year, week, Weekday::Mon)
-            .ok_or_else(|| de::Error::custom("invalid iso week"))?
-            .iso_week();
+        let week = match (year, week) {
+            (Some(year), Some(week)) => NaiveDate::from_isoywd_opt(year, week, Weekday::Mon)
+                .ok_or_else(|| de::Error::custom("invalid iso week"))?
+                .iso_week(),
+            (Some(_), None) => return Err(de::Error::missing_field("week")),
+            (None, Some(_)) => return Err(de::Error::missing_field("year")),
+            (None, None) => Utc::now().date_naive().iso_week(),
+        };
 
         let selection = match (class, share) {
             (Some(class), None) => Selection::Class(class),
