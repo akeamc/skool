@@ -1,49 +1,6 @@
-mod iso_week {
-    use chrono::{Datelike, NaiveDate, Weekday};
-    use serde::{de, Deserialize, Serialize};
-
-    #[derive(Debug, Clone, Copy)]
-    pub struct IsoWeek(pub chrono::IsoWeek);
-
-    #[derive(Debug, Serialize, Deserialize)]
-    struct Parts {
-        year: i32,
-        week: u32,
-    }
-
-    impl<'de> Deserialize<'de> for IsoWeek {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            let Parts { year, week } = Parts::deserialize(deserializer)?;
-
-            IsoWeek::from_parts(year, week).ok_or_else(|| de::Error::custom("invalid iso week"))
-        }
-    }
-
-    impl Serialize for IsoWeek {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            Parts {
-                year: self.0.year(),
-                week: self.0.week(),
-            }
-            .serialize(serializer)
-        }
-    }
-
-    impl IsoWeek {
-        pub fn from_parts(year: i32, week: u32) -> Option<Self> {
-            NaiveDate::from_isoywd_opt(year, week, Weekday::Mon).map(|d| Self(d.iso_week()))
-        }
-    }
-}
+use std::ops::Bound;
 
 use chrono::{NaiveDate, Weekday};
-pub use iso_week::IsoWeek;
 
 mod range {
     use std::ops::{Bound, Deref};
@@ -117,6 +74,7 @@ mod range {
 }
 
 pub use range::Range;
+use sqlx::postgres::types::PgRange;
 
 pub trait IsoWeekExt: Sized {
     fn with_weekday(self, weekday: Weekday) -> Option<NaiveDate>;
@@ -125,5 +83,18 @@ pub trait IsoWeekExt: Sized {
 impl IsoWeekExt for chrono::IsoWeek {
     fn with_weekday(self, weekday: Weekday) -> Option<NaiveDate> {
         NaiveDate::from_isoywd_opt(self.year(), self.week(), weekday)
+    }
+}
+
+pub trait PgRangeExt<T> {
+    fn full() -> Self;
+}
+
+impl<T> PgRangeExt<T> for PgRange<T> {
+    fn full() -> Self {
+        Self {
+            start: Bound::Unbounded,
+            end: Bound::Unbounded,
+        }
     }
 }
