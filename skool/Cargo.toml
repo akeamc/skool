@@ -15,7 +15,7 @@ dotenv = "0.15.0"
 reqwest = "0.11.10"
 tracing = "0.1.29"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-uuid = { version = "1.1.2", features = ["v4"] }
+uuid = { version = "1.3.2", features = ["v4"] }
 skool-agenda = { path = "../agenda" }
 mime = "0.3.16"
 auth1-sdk = { git = "https://github.com/skolorna/auth1", features = ["actix"] }
