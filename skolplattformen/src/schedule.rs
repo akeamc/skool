@@ -511,7 +511,9 @@ mod tests {
                     .expect("SKOLPLATTFORMEN_TEST_USERNAME not set");
                 let password = env::var("SKOLPLATTFORMEN_TEST_PASSWORD")
                     .expect("SKOLPLATTFORMEN_TEST_PASSWORD not set");
-                let session = crate::session::login(&username, &password).await.unwrap();
+                let session = crate::session::login(&username, &password.into())
+                    .await
+                    .unwrap();
                 Client::new(session).unwrap()
             })
             .await

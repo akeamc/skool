@@ -1,7 +1,9 @@
 use std::array::TryFromSliceError;
 
 use serde::{Deserialize, Serialize};
+use sqlx::{Postgres, Transaction};
 use tracing::error;
+use uuid::Uuid;
 
 use crate::{error::AppError, session::Session, Result, System};
 
@@ -61,4 +63,34 @@ pub async fn from_session(session: Session) -> Result<Class> {
             })
         }
     }
+}
+
+pub async fn add_to_class<'a>(
+    class: &Class,
+    uid: Uuid,
+    tx: &mut Transaction<'a, Postgres>,
+) -> Result<()> {
+    sqlx::query!(
+        r#"
+          INSERT INTO classes (school, reference, name) VALUES ($1, $2, $3)
+          ON CONFLICT ON CONSTRAINT classes_pkey DO UPDATE
+            SET name = EXCLUDED.name
+        "#,
+        class.school.as_ref(),
+        class.reference,
+        class.name
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query!(
+        "UPDATE credentials SET (school, class_reference) = ($1, $2) WHERE uid = $3",
+        class.school.as_ref(),
+        class.reference,
+        uid
+    )
+    .execute(tx)
+    .await?;
+
+    Ok(())
 }

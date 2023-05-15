@@ -1,25 +1,22 @@
-use actix_web::{
-    web::{self, Payload},
-    FromRequest, HttpRequest, HttpResponse,
-};
 use auth1_sdk::Identity;
+use axum::{extract::State, response::IntoResponse, routing::put, Json, Router};
+use reqwest::StatusCode;
 use tracing::error;
 
 use crate::{
-    class,
+    class::{self, add_to_class},
     credentials::{self, Credentials, PublicCredentials},
     crypt::encrypt_bytes,
     error::AppError,
     session::{self, Session},
-    ApiContext, Result,
+    AppState, Result,
 };
 
 async fn save_credentials(
     identity: Identity,
-    creds: web::Json<credentials::Private>,
-    ctx: web::Data<ApiContext>,
-) -> Result<HttpResponse> {
-    let creds = creds.into_inner();
+    State(ctx): State<AppState>,
+    Json(creds): Json<credentials::Private>,
+) -> Result<impl IntoResponse> {
     let d = encrypt_bytes(&creds, ctx.aes_key())?;
     let session = Session::create(&creds).await?;
     let mut tx = ctx.postgres.begin().await?;
@@ -31,22 +28,25 @@ async fn save_credentials(
             SET (data, updated_at) = (EXCLUDED.data, EXCLUDED.updated_at)
           RETURNING updated_at
         "#,
-        identity.claims.sub,
+        identity.id(),
         d,
     )
     .fetch_one(&mut tx)
     .await?;
 
     let mut redis = ctx.redis.get().await?;
-    session::save_to_cache(&session, identity.claims.sub, ctx.aes_key(), &mut redis).await?;
+    session::save_to_cache(&session, identity.id(), ctx.aes_key(), &mut redis).await?;
 
-    let (school, class) = class::from_session(session).await.map_or_else(
-        |e| {
+    let (school, class) = match class::from_session(session).await {
+        Err(e) => {
             error!(error = %e, "snoop failed");
             (None, None)
-        },
-        |c| (Some(c.school), Some(c.reference)),
-    );
+        }
+        Ok(class) => {
+            add_to_class(&class, identity.id(), &mut tx).await?;
+            (Some(class.school), Some(class.reference))
+        }
+    };
 
     tx.commit().await?;
 
@@ -57,14 +57,15 @@ async fn save_credentials(
         class,
     };
 
-    Ok(HttpResponse::Created().json(creds))
+    Ok((StatusCode::CREATED, Json(creds)))
 }
 
-async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpResponse> {
-    let mut payload = payload.into_inner();
-
-    match Credentials::from_request(&req, &mut payload).await {
-        Ok(c) => Ok(HttpResponse::Ok().json(PublicCredentials::from(c))),
+async fn get_credentials(credentials: Result<Credentials>) -> Result<impl IntoResponse> {
+    match credentials {
+        Ok(c) => Ok((
+            [("cache-control", "no-cache")],
+            Json(PublicCredentials::from(c)),
+        )),
         Err(AppError::MissingCredentials) => Err(AppError::NotFound("no credentials set")),
         Err(e) => Err(e),
     }
@@ -72,8 +73,8 @@ async fn get_credentials(req: HttpRequest, payload: Payload) -> Result<HttpRespo
 
 async fn delete_credentials(
     identity: Identity,
-    ctx: web::Data<ApiContext>,
-) -> Result<HttpResponse> {
+    State(ctx): State<AppState>,
+) -> Result<impl IntoResponse> {
     sqlx::query!(
         "DELETE FROM credentials WHERE uid = $1",
         identity.claims.sub
@@ -83,14 +84,14 @@ async fn delete_credentials(
 
     session::purge(&mut ctx.redis.get().await?, identity.claims.sub).await?;
 
-    Ok(HttpResponse::NoContent().finish())
+    Ok(StatusCode::NO_CONTENT)
 }
 
-pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::resource("")
-            .route(web::put().to(save_credentials))
-            .route(web::get().to(get_credentials))
-            .route(web::delete().to(delete_credentials)),
-    );
+pub fn routes() -> Router<AppState> {
+    Router::<_>::new().route(
+        "/",
+        put(save_credentials)
+            .get(get_credentials)
+            .delete(delete_credentials),
+    )
 }

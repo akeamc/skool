@@ -7,7 +7,7 @@ use sqlx::postgres::types::PgRange;
 use crate::{
     error::AppError,
     session::{self, Session},
-    util, ApiContext, Result,
+    util, AppState, Result,
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
@@ -68,7 +68,7 @@ impl Link {
     }
 }
 
-pub async fn get_session(id: &Id, ctx: &ApiContext) -> Result<(Session, PgRange<NaiveDate>)> {
+pub async fn get_session(id: &Id, ctx: &AppState) -> Result<(Session, PgRange<NaiveDate>)> {
     let record = sqlx::query!(
         "SELECT owner, expires_at, range FROM links WHERE id = $1",
         &id.0

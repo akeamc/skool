@@ -1,7 +1,5 @@
-use actix_cors::Cors;
-use actix_web::{web, App, HttpServer};
-
 use auth1_sdk::KeyStore;
+use axum::Extension;
 use clap::Parser;
 use dotenv::dotenv;
 use opentelemetry::{
@@ -9,7 +7,7 @@ use opentelemetry::{
     KeyValue,
 };
 use opentelemetry_otlp::WithExportConfig;
-use skool::{routes, ApiContext, Config};
+use skool::{routes::app, AppState, Config};
 use sqlx::postgres::PgPoolOptions;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -51,7 +49,7 @@ pub fn init_telemetry(otlp_endpoint: impl Into<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
     let config = Config::parse();
@@ -70,24 +68,17 @@ async fn main() -> anyhow::Result<()> {
     let redis = deadpool_redis::Config::from_url(&config.redis_url)
         .create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
-    let ctx = web::Data::new(ApiContext {
+    let ctx = AppState {
         postgres: db,
         redis,
         config,
-    });
+    };
 
-    HttpServer::new(move || {
-        let cors = Cors::permissive();
+    let app = app().with_state(ctx.clone()).layer(Extension(key_store));
 
-        App::new()
-            .wrap(cors)
-            .app_data(ctx.clone())
-            .app_data(key_store.clone())
-            .configure(routes::config)
-    })
-    .bind(("0.0.0.0", 8000))?
-    .run()
-    .await?;
+    axum::Server::bind(&"0.0.0.0:8000".parse().unwrap())
+        .serve(app.into_make_service())
+        .await?;
 
     Ok(())
 }

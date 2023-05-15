@@ -1,8 +1,7 @@
-use actix_web::{web, FromRequest};
 use aes_gcm_siv::{Aes256GcmSiv, Key};
 use auth1_sdk::Identity;
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use deadpool_redis::redis::{self, aio::ConnectionLike};
-use futures::{future::LocalBoxFuture, FutureExt};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument};
 use uuid::Uuid;
@@ -12,7 +11,7 @@ use crate::{
     credentials,
     crypt::{decrypt_bytes, encrypt_bytes},
     error::AppError,
-    ApiContext, Result,
+    AppState, Result,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -65,7 +64,7 @@ pub async fn purge<C: redis::aio::ConnectionLike>(conn: &mut C, user: Uuid) -> R
 }
 
 #[instrument(name = "get_session", skip(ctx))]
-pub async fn get(owner: Uuid, ctx: &ApiContext) -> Result<Option<Session>> {
+pub async fn get(owner: Uuid, ctx: &AppState) -> Result<Option<Session>> {
     let mut redis = ctx.redis.get().await?;
 
     let cache_key = cache_key(owner);
@@ -96,11 +95,7 @@ pub async fn get(owner: Uuid, ctx: &ApiContext) -> Result<Option<Session>> {
 }
 
 #[instrument(skip(ctx))]
-pub async fn in_class(
-    school: &SchoolHash,
-    class: &str,
-    ctx: &ApiContext,
-) -> Result<Option<Session>> {
+pub async fn in_class(school: &SchoolHash, class: &str, ctx: &AppState) -> Result<Option<Session>> {
     let user = match sqlx::query!(
         "SELECT uid FROM credentials WHERE school = $1 AND class_reference = $2",
         school.as_ref(),
@@ -117,26 +112,18 @@ pub async fn in_class(
     Ok(Some(session))
 }
 
-impl FromRequest for Session {
-    type Error = AppError;
+#[async_trait]
+impl FromRequestParts<AppState> for Session {
+    type Rejection = AppError;
 
-    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let ident = Identity::from_request_parts(parts, state).await?;
 
-    fn from_request(
-        req: &actix_web::HttpRequest,
-        payload: &mut actix_web::dev::Payload,
-    ) -> Self::Future {
-        let req = req.clone();
-
-        let ident = Identity::from_request(&req, payload);
-        let ctx = web::Data::<ApiContext>::extract(&req).into_inner().unwrap();
-
-        async move {
-            let ident = ident.await?;
-            get(ident.claims.sub, &ctx)
-                .await?
-                .ok_or(AppError::MissingCredentials)
-        }
-        .boxed_local()
+        get(ident.id(), state)
+            .await?
+            .ok_or(AppError::MissingCredentials)
     }
 }

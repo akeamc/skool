@@ -22,7 +22,7 @@ pub enum Error {
     BadCredentials,
 
     /// Some HTTP request failed.
-    #[error("http error")]
+    #[error("http client error: {0}")]
     Http(#[from] reqwest::Error),
 
     /// The scraping failed, most likely due to some unexpected HTML.

@@ -1,29 +1,32 @@
-use actix_web::{
-    web::{self, Json, Path},
-    HttpResponse,
-};
 use auth1_sdk::Identity;
+use axum::{
+    extract::{Path, State},
+    response::IntoResponse,
+    routing::{delete, get},
+    Json, Router,
+};
+use reqwest::StatusCode;
 
 use crate::{
     error::AppError,
     share::{self, Link},
-    ApiContext, Result,
+    AppState, Result,
 };
 
-async fn list(identity: Identity, ctx: web::Data<ApiContext>) -> Result<HttpResponse> {
+async fn list(identity: Identity, State(ctx): State<AppState>) -> Result<impl IntoResponse> {
     let links: Vec<Link> = sqlx::query_as("SELECT * FROM links WHERE owner = $1")
         .bind(identity.claims.sub)
         .fetch_all(&ctx.postgres)
         .await?;
 
-    Ok(HttpResponse::Ok().json(links))
+    Ok(Json(links))
 }
 
 async fn create(
     identity: Identity,
+    State(ctx): State<AppState>,
     Json(options): Json<share::Options>,
-    ctx: web::Data<ApiContext>,
-) -> Result<HttpResponse> {
+) -> Result<impl IntoResponse> {
     let link = Link::new(options);
 
     sqlx::query!(
@@ -36,15 +39,14 @@ async fn create(
     .execute(&ctx.postgres)
     .await?;
 
-    Ok(HttpResponse::Created().json(link))
+    Ok((StatusCode::CREATED, Json(link)))
 }
 
-async fn delete(
+async fn delete_link(
     identity: Identity,
-    path: Path<share::Id>,
-    ctx: web::Data<ApiContext>,
-) -> Result<HttpResponse> {
-    let id = path.into_inner();
+    Path(id): Path<share::Id>,
+    State(ctx): State<AppState>,
+) -> Result<impl IntoResponse> {
     let res = sqlx::query!(
         "DELETE FROM links WHERE owner = $1 AND id = $2",
         identity.claims.sub,
@@ -56,15 +58,12 @@ async fn delete(
     if res.rows_affected() == 0 {
         Err(AppError::NotFound("link not found"))
     } else {
-        Ok(HttpResponse::NoContent().finish())
+        Ok(StatusCode::NO_CONTENT)
     }
 }
 
-pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::resource("")
-            .route(web::get().to(list))
-            .route(web::post().to(create)),
-    )
-    .service(web::resource("/{id}").route(web::delete().to(delete)));
+pub fn routes() -> Router<AppState> {
+    Router::<_>::new()
+        .route("/", get(list).post(create))
+        .route("/{id}", delete(delete_link))
 }
