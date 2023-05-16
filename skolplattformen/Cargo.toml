@@ -17,6 +17,7 @@ chrono-tz = "0.8.0"
 uuid = { version = "1.1.2", features = ["v5"] }
 csscolorparser = { version = "0.6.2", features = ["serde"] }
 select = "0.6.0"
+secrecy = "0.8.0"
 
 [dev-dependencies]
 async-once-cell = "0.4.2"

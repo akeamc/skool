@@ -21,7 +21,7 @@ impl Client {
         // the only way from_cookies() can be Err is if the iterator yields an Err, which it doesn't do
         let cookie_store =
             CookieStore::from_cookies(session.cookies.into_iter().map(Ok::<_, ()>), true).unwrap();
-        let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreMutex::new(cookie_store));
+        let cookie_store = Arc::new(reqwest_cookie_store::CookieStoreRwLock::new(cookie_store));
 
         let mut headers = HeaderMap::new();
 

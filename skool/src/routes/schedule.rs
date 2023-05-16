@@ -1,10 +1,13 @@
 use std::{iter, ops::RangeBounds};
 
-use actix_web::{
-    http::header::{self, CacheControl, CacheDirective},
-    web, FromRequest, HttpRequest, HttpResponse,
+use axum::{
+    body::Body,
+    extract::{FromRequestParts, Query, State},
+    http::{request::Parts, Request},
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
 };
-
 use chrono::{Datelike, Duration, IsoWeek, NaiveDate, Utc, Weekday};
 use futures::{stream, StreamExt, TryStreamExt};
 use icalendar::Calendar;
@@ -21,7 +24,7 @@ use crate::{
     session::{self, Session},
     share,
     util::{IsoWeekExt, PgRangeExt},
-    ApiContext, Result,
+    AppState, Result,
 };
 
 mod links;
@@ -35,13 +38,13 @@ enum Selection {
 }
 
 #[derive(Debug)]
-struct Query {
+struct ScheduleQuery {
     week: IsoWeek,
     selection: Selection,
 }
 
 // workaround for https://github.com/serde-rs/serde/issues/1183
-impl<'de> Deserialize<'de> for Query {
+impl<'de> Deserialize<'de> for ScheduleQuery {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -83,12 +86,12 @@ impl<'de> Deserialize<'de> for Query {
 
 async fn get_session(
     selection: &Selection,
-    ctx: &ApiContext,
-    req: &HttpRequest,
+    ctx: &AppState,
+    parts: &mut Parts,
 ) -> Result<(Session, PgRange<NaiveDate>)> {
     Ok(match selection {
         Selection::Class(class) => {
-            let session = Session::extract(req).await?;
+            let session = Session::from_request_parts(parts, ctx).await?;
             let school = class::from_session(session).await?.school;
             let session = session::in_class(&school, class, ctx)
                 .await?
@@ -97,7 +100,10 @@ async fn get_session(
             (session, PgRange::full())
         }
         Selection::OtherUser(link) => share::get_session(link, ctx).await?,
-        Selection::CurrentUser => (Session::extract(req).await?, PgRange::full()),
+        Selection::CurrentUser => (
+            Session::from_request_parts(parts, ctx).await?,
+            PgRange::full(),
+        ),
     })
 }
 
@@ -125,11 +131,12 @@ async fn get_lessons(
 
 #[instrument(skip(ctx, req))]
 async fn schedule(
-    web::Query(query): web::Query<Query>,
-    req: HttpRequest,
-    ctx: web::Data<ApiContext>,
-) -> Result<HttpResponse> {
-    let (session, allowed_range) = get_session(&query.selection, &ctx, &req).await?;
+    Query(query): Query<ScheduleQuery>,
+    State(ctx): State<AppState>,
+    req: Request<Body>,
+) -> Result<impl IntoResponse> {
+    let (mut parts, _) = req.into_parts();
+    let (session, allowed_range) = get_session(&query.selection, &ctx, &mut parts).await?;
 
     if !(allowed_range.contains(&query.week.with_weekday(Weekday::Mon).unwrap())
         && allowed_range.contains(&query.week.with_weekday(Weekday::Sun).unwrap()))
@@ -139,22 +146,18 @@ async fn schedule(
 
     let lessons = get_lessons(session, iter::once(query.week)).await?;
 
-    Ok(HttpResponse::Ok()
-        .insert_header(CacheControl(vec![
-            CacheDirective::Private,
-            CacheDirective::MaxAge(3600),
-        ]))
-        .json(lessons))
+    Ok(([("cache-control", "private; max-age=3600")], Json(lessons)))
 }
 
 #[instrument(skip(ctx, req))]
 async fn ical(
-    web::Query(query): web::Query<Query>,
-    ctx: web::Data<ApiContext>,
-    req: HttpRequest,
-) -> Result<HttpResponse> {
+    Query(query): Query<ScheduleQuery>,
+    State(ctx): State<AppState>,
+    req: Request<Body>,
+) -> Result<impl IntoResponse> {
+    let (mut parts, _) = req.into_parts();
     let first = Utc::now().date_naive() - Duration::weeks(4);
-    let (session, range) = get_session(&query.selection, &ctx, &req).await?;
+    let (session, range) = get_session(&query.selection, &ctx, &mut parts).await?;
     let mut calendar = Calendar::new();
 
     let weeks = first
@@ -168,14 +171,18 @@ async fn ical(
     let lessons = get_lessons(session, weeks).await?;
     calendar.extend(lessons.into_iter().map(|l| l.to_event()));
 
-    Ok(HttpResponse::Ok()
-        .insert_header(header::ContentType("text/calendar".parse().unwrap()))
-        .insert_header(CacheControl(vec![CacheDirective::NoCache]))
-        .body(calendar.to_string()))
+    Ok((
+        [
+            ("content-type", "text/calendar"),
+            ("cache-control", "no-cache"),
+        ],
+        calendar.to_string(),
+    ))
 }
 
-pub fn config(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::scope("/links").configure(links::config))
-        .service(web::resource("").route(web::get().to(schedule)))
-        .service(web::resource("/ical").route(web::get().to(ical)));
+pub fn routes() -> Router<AppState> {
+    Router::<_>::new()
+        .nest("/links", links::routes())
+        .route("/", get(schedule))
+        .route("/ical", get(ical))
 }

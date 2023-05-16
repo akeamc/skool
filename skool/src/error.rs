@@ -1,10 +1,6 @@
-use actix_web::{
-    body::BoxBody,
-    http::{header, StatusCode},
-    HttpResponse, ResponseError,
-};
+use axum::{http::StatusCode, response::IntoResponse};
 use deadpool_redis::redis::RedisError;
-use reqwest::header::HeaderValue;
+
 use thiserror::Error;
 use tracing::error;
 
@@ -29,33 +25,25 @@ pub enum AppError {
     InvalidShareLink,
 
     #[error("{0}")]
-    Auth(#[from] auth1_sdk::actix::FromRequestError),
+    Auth(#[from] auth1_sdk::axum::IdentityRejection),
 }
 
-impl ResponseError for AppError {
-    fn status_code(&self) -> StatusCode {
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
         match self {
-            AppError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::TimetableNotFound => StatusCode::NOT_FOUND,
-            AppError::MissingCredentials => StatusCode::UNAUTHORIZED,
-            AppError::InvalidShareLink => StatusCode::UNAUTHORIZED,
-            Self::Auth(e) => e.status_code(),
-        }
-    }
-
-    fn error_response(&self) -> HttpResponse<BoxBody> {
-        match self {
-            Self::Auth(e) => e.error_response(),
+            Self::Auth(e) => e.into_response(),
             e => {
-                let mut res = HttpResponse::new(e.status_code());
-                res.headers_mut().insert(
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_static("text/plain; charset=utf-8"),
-                );
+                let status = match e {
+                    AppError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+                    AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+                    AppError::NotFound(_) => StatusCode::NOT_FOUND,
+                    AppError::TimetableNotFound => StatusCode::NOT_FOUND,
+                    AppError::MissingCredentials => StatusCode::UNAUTHORIZED,
+                    AppError::InvalidShareLink => StatusCode::UNAUTHORIZED,
+                    Self::Auth(_e) => unreachable!(),
+                };
 
-                res.set_body(BoxBody::new(e.to_string()))
+                (status, e.to_string()).into_response()
             }
         }
     }

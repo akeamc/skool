@@ -1,7 +1,7 @@
 use aes_gcm_siv::{Aes256GcmSiv, Key};
 use error::AppError;
 use hex::FromHexError;
-use sqlx::Postgres;
+use sqlx::PgPool;
 
 pub mod class;
 pub mod credentials;
@@ -15,7 +15,7 @@ mod util;
 
 pub type Result<T, E = AppError> = core::result::Result<T, E>;
 
-#[derive(clap::Parser)]
+#[derive(clap::Parser, Clone)]
 pub struct Config {
     #[clap(env)]
     pub database_url: String,
@@ -39,13 +39,14 @@ fn parse_hex_key(s: &str) -> Result<Key<Aes256GcmSiv>, FromHexError> {
     Ok(*Key::<Aes256GcmSiv>::from_slice(&data))
 }
 
-pub struct ApiContext {
-    pub postgres: sqlx::Pool<Postgres>,
+#[derive(Clone)]
+pub struct AppState {
+    pub postgres: PgPool,
     pub redis: deadpool_redis::Pool,
     pub config: Config,
 }
 
-impl ApiContext {
+impl AppState {
     pub fn aes_key(&self) -> &Key<Aes256GcmSiv> {
         &self.config.aes_key
     }

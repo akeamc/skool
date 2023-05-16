@@ -1,20 +1,32 @@
-use actix_web::{dev, web, FromRequest, HttpRequest};
 use aes_gcm_siv::{Aes256GcmSiv, Key};
 use auth1_sdk::Identity;
+use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use chrono::{DateTime, Utc};
-use futures::{future::LocalBoxFuture, FutureExt};
+
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 use sqlx::PgExecutor;
 use tracing::{error, instrument};
 use uuid::Uuid;
 
-use crate::{class::SchoolHash, crypt::decrypt_bytes, error::AppError, ApiContext, Result};
+use crate::{class::SchoolHash, crypt::decrypt_bytes, error::AppError, AppState, Result};
+
+fn serialize_secret<S>(secret: &SecretString, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(secret.expose_secret())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "service", rename_all = "snake_case")]
 pub enum Private {
-    Skolplattformen { username: String, password: String },
+    Skolplattformen {
+        username: String,
+        #[serde(serialize_with = "serialize_secret")]
+        password: SecretString,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,23 +115,20 @@ pub async fn get(
     }
 }
 
-impl FromRequest for Credentials {
-    type Error = AppError;
+#[async_trait]
+impl FromRequestParts<AppState> for Credentials {
+    type Rejection = AppError;
 
-    type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let ident = Identity::from_request_parts(parts, state).await?;
 
-    fn from_request(req: &HttpRequest, payload: &mut dev::Payload) -> Self::Future {
-        let ctx = web::Data::<ApiContext>::extract(req).into_inner().unwrap();
-        let ident = Identity::from_request(req, payload);
+        let credentials = get(ident.claims.sub, &state.postgres, state.aes_key())
+            .await?
+            .ok_or(AppError::MissingCredentials)?;
 
-        async move {
-            let ident = ident.await?;
-            let credentials = get(ident.claims.sub, &ctx.postgres, ctx.aes_key())
-                .await?
-                .ok_or(AppError::MissingCredentials)?;
-
-            Ok(credentials)
-        }
-        .boxed_local()
+        Ok(credentials)
     }
 }

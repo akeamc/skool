@@ -11,12 +11,10 @@ pub(crate) async fn get_doc<U: IntoUrl + Debug>(
     url: U,
 ) -> Result<Document, reqwest::Error> {
     trace!("GET {:?}", url);
-
     let res = client.get(url).send().await?;
-
     trace!(status = ?res.status());
-
-    Ok(Document::from(res.text().await?.as_str()))
+    let html = res.text().await?;
+    Ok(Document::from(html.as_str()))
 }
 
 /// Extract form fields with their values from a `form` element.
