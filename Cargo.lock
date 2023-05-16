@@ -2630,7 +2630,7 @@ dependencies = [
 
 [[package]]
 name = "skool"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
